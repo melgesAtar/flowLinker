@@ -21,14 +21,13 @@ public class Customer {
     @Column(unique = true)
     private String email;
     private String phoneNumber;
-
-    @Enumerated(EnumType.STRING)
-    private DocumentType documentType;
-    private String documentNumber;
-    private String address;
+    private String addressLine1;
+    private String addressLine2;
     private String city;
     private String state;
-    private String zipCode;
+    private String postalCode;
+    private String country;
+    private LocalDateTime subscriptionStartDate;
     private LocalDateTime subscriptionEndDate;
 
     @Enumerated(EnumType.STRING)
@@ -39,7 +38,7 @@ public class Customer {
 
     public enum SubscriptionStatus {ACTIVE, PENDING, CANCELLED, PAST_DUE, TRIAL}
 
-    public enum DocumentType {CPF, CNPJ}
+
     public enum OfferType {BASIC, STANDARD, PRO}
 
     @OneToOne(mappedBy = "customer", cascade = CascadeType.ALL, orphanRemoval = true)

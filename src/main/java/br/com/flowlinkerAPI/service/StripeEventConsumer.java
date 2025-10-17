@@ -29,13 +29,13 @@ public class StripeEventConsumer {
     }
     
     @RabbitListener(queues = RabbitMQConfig.QUEUE_NAME)
-    public void processEvent(String eventJson) {
-        logger.info("Receiving event in JSON from Stripe: {}", eventJson);
+    public void processEvent(String payload) {
+        logger.info("Payload received in consumer: {}", payload);
 
         Event event;
 
         try {
-            event = ApiResource.GSON.fromJson(eventJson, Event.class);
+            event = ApiResource.GSON.fromJson(payload, Event.class);
         } catch (JsonSyntaxException e) {
             logger.warn("Payload invalid from Stripe: {}", e.getMessage());
             return;
@@ -74,38 +74,33 @@ public class StripeEventConsumer {
         
         switch (event.getType()) {
             case "checkout.session.completed": {
+
                 com.stripe.model.checkout.Session session = (com.stripe.model.checkout.Session) stripeObject;
-                String productId = null;
-                String priceId = null;
 
-                try{
-                    var params = com.stripe.param.checkout.SessionListLineItemsParams.builder().setLimit(1L).build();
-                    var items = session.listLineItems(params);
-                    if(items != null && !items.getData().isEmpty()) {
-                        var item = items.getData().get(0);
-                        if (item.getPrice() != null && item.getPrice().getProduct() != null) {
-                            priceId = item.getPrice().getId();
-                            productId = item.getPrice().getProduct();
-                        }
-                        // Agora productId estará preenchido se disponível.
-                    }
-                } catch (Exception e) {
-                    logger.error("Error listing line items: {}", e.getMessage());
-                }
-
-                var customer = customerService.upsertFromStripeCheckout(session, productId, priceId);
+                var customer = customerService.upsertFromStripeCheckout(session);
                 var user = userService.createOrGetUserByEmail(customer.getEmail());
                 user.setCustomer(customer);
                 userService.saveUser(user);
 
                 logger.info("Customer and user created successfully: {}", customer.getEmail());
                 break;
-                
 
             }
-            case "payment_intent.succeeded": {
-                PaymentIntent paymentIntent = (PaymentIntent) stripeObject;
-                logger.info("PaymentIntent succeeded: {}", paymentIntent != null ? paymentIntent.getId() : "unknown");
+            case "invoice.paid": {
+                logger.info("Invoice paid event received");
+                Invoice invoice = (Invoice) stripeObject;
+
+                if(!invoice.getBillingReason().equals("subscription_create")) {
+                    Customer customer = customerService.getCustomerByCustomerId(customerId);
+                    customer.setSubscriptionStatus(Customer.SubscriptionStatus.ACTIVE);
+                    customerService.saveCustomer(customer);
+                    logger.info("Customer subscription status updated to active: {}", customer.getEmail());
+                } else {
+                    logger.info("Invoice not related to a subscription, ignoring");
+                    return;
+                }
+
+
                 break;
             }
             default:

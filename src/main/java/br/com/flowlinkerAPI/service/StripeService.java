@@ -2,10 +2,6 @@ package br.com.flowlinkerAPI.service;
 
 import com.stripe.exception.SignatureVerificationException;
 import com.stripe.model.Event;
-import com.stripe.model.EventDataObjectDeserializer;
-import com.stripe.model.PaymentIntent;
-import com.stripe.model.PaymentMethod;
-import com.stripe.model.StripeObject;
 import com.stripe.net.Webhook;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,12 +33,6 @@ public class StripeService {
 
         Event event = null;
 
-        try {
-            event = ApiResource.GSON.fromJson(payload, Event.class);
-        } catch (JsonSyntaxException e) {
-            logger.warn("Payload inválido do Stripe: {}", e.getMessage());
-            return ResponseEntity.status(400).build();
-        }
 
         logger.info("Payload do Stripe: {}", payload);
 
@@ -57,8 +47,8 @@ public class StripeService {
         }
 
        
-        String eventJson = event.toJson();
-        rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE_NAME, "stripe.event." + event.getType(), eventJson);
+
+        rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE_NAME, "stripe.event." + event.getType(), payload);
         logger.info("Evento publicado na fila RabbitMQ: {}", event.getType());
 
         return ResponseEntity.status(200).build();

@@ -17,18 +17,20 @@ public class CustomerService {
         this.customerRepository = customerRepository;
     }
 
-    public Customer upsertFromStripeCheckout(Session session, String productId, String priceId) {
+    public Customer upsertFromStripeCheckout(Session session) {
         
         String email = session.getCustomerDetails() != null ? session.getCustomerDetails().getEmail() : null;
         String name = session.getCustomerDetails() != null ? session.getCustomerDetails().getName() : null;
         String phoneNumber = session.getCustomerDetails() != null ? session.getCustomerDetails().getPhone() : null;
-        String address = session.getCustomerDetails() != null ? session.getCustomerDetails().getAddress().getLine1() : null;
+        String address1 = session.getCustomerDetails() != null ? session.getCustomerDetails().getAddress().getLine1() : null;
+        String address2 = session.getCustomerDetails() != null ? session.getCustomerDetails().getAddress().getLine2() : null;
         String city = session.getCustomerDetails() != null ? session.getCustomerDetails().getAddress().getCity() : null;
         String state = session.getCustomerDetails() != null ? session.getCustomerDetails().getAddress().getState() : null;
-        String zipCode = session.getCustomerDetails() != null ? session.getCustomerDetails().getAddress().getPostalCode() : null;
+        String postalCode = session.getCustomerDetails() != null ? session.getCustomerDetails().getAddress().getPostalCode() : null;
         
         String stripeCustomerId = session.getCustomer() != null ? session.getCustomer() : null;
         String stripeSubscriptionId = session.getSubscription() != null ? session.getSubscription() : null;
+
 
         Customer existingCustomer = null;
         if(stripeCustomerId != null) {
@@ -43,20 +45,18 @@ public class CustomerService {
         }
 
         Customer target = existingCustomer != null ? existingCustomer : new Customer();
+
         target.setEmail(email);
         target.setName(name);
         target.setPhoneNumber(phoneNumber);
-        target.setAddress(address);
+        target.setAddressLine1(address1);
+        target.setAddressLine2(address2);
         target.setCity(city);
         target.setState(state);
-        target.setZipCode(zipCode);
+        target.setPostalCode(postalCode);
         target.setStripeCustomerId(stripeCustomerId);
         target.setStripeSubscriptionId(stripeSubscriptionId);
-        target.setStripePriceId(priceId);
-        target.setStripeProductId(productId);
 
-
-        target.setOfferType(mapPriceIdToOfferType(productId));
         return customerRepository.save(target);
     }
 

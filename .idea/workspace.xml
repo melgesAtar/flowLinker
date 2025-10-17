@@ -6,8 +6,9 @@
   <component name="ChangeListManager">
     <list default="true" id="f618b63f-b518-4e77-a414-7ad3357a0a48" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/br/com/flowlinkerAPI/controller/StripeCrontroller.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/flowlinkerAPI/controller/StripeCrontroller.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/br/com/flowlinkerAPI/model/Customer.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/flowlinkerAPI/model/Customer.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/br/com/flowlinkerAPI/service/CustomerService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/flowlinkerAPI/service/CustomerService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/br/com/flowlinkerAPI/service/StripeEventConsumer.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/flowlinkerAPI/service/StripeEventConsumer.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/br/com/flowlinkerAPI/service/StripeService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/flowlinkerAPI/service/StripeService.java" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
