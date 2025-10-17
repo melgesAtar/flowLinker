@@ -46,4 +46,8 @@ public class UserService {
         return sb.toString();
     }
 
+    public User saveUser(User user) {
+        return userRepository.save(user);
+    }
+
 }
