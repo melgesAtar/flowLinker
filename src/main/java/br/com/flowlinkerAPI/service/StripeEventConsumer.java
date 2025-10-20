@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
 import br.com.flowlinkerAPI.repository.StripeProcessedEventRepository;
 import br.com.flowlinkerAPI.model.StripeProcessedEvent;
 import java.time.Instant;
-import com.stripe.param.checkout.SessionListLineItemsParams;
+import org.springframework.transaction.annotation.Transactional;
 @Service
 public class StripeEventConsumer {
 
@@ -21,13 +21,17 @@ public class StripeEventConsumer {
     private final StripeProcessedEventRepository stripeProcessedEventRepository;
     private final CustomerService customerService;
     private final UserService userService;
+    private final StripeProcessedEventService stripeProcessedEventService;
 
-    public StripeEventConsumer(StripeProcessedEventRepository stripeProcessedEventRepository, CustomerService customerService, UserService userService) {
+    public StripeEventConsumer(StripeProcessedEventRepository stripeProcessedEventRepository, CustomerService customerService, UserService userService, StripeProcessedEventService stripeProcessedEventService) {
         this.stripeProcessedEventRepository = stripeProcessedEventRepository;
         this.customerService = customerService;
         this.userService = userService;
+        this.stripeProcessedEventService = stripeProcessedEventService;
     }
+   
     
+    @Transactional
     @RabbitListener(queues = RabbitMQConfig.QUEUE_NAME)
     public void processEvent(String payload) {
         logger.info("Payload received in consumer: {}", payload);
@@ -37,7 +41,7 @@ public class StripeEventConsumer {
         try {
             event = ApiResource.GSON.fromJson(payload, Event.class);
         } catch (JsonSyntaxException e) {
-            logger.warn("Payload invalid from Stripe: {}", e.getMessage());
+            logger.warn("Invalid payload from Stripe: {}", e.getMessage());
             return;
         }
 
@@ -46,19 +50,15 @@ public class StripeEventConsumer {
             logger.warn("Event without ID, ignoring.");
             return;
         }
-
-        try{
-            StripeProcessedEvent stripeProcessedEvent = new StripeProcessedEvent();
-            stripeProcessedEvent.setEventId(id);
-            stripeProcessedEvent.setEventType(event.getType());
-            stripeProcessedEvent.setProcessedAt(Instant.now());
-            stripeProcessedEventRepository.save(stripeProcessedEvent);
-            logger.info("Event saved successfully: {}", id);
-
-        } catch (DataIntegrityViolationException e) {
-            logger.error("Event already processed: {}", id);
-            return;
-        }
+        
+    
+            StripeProcessedEvent stripeProcessedEvent = stripeProcessedEventService.getStripeProcessedEventByEventId(id);
+            if (stripeProcessedEvent != null) {
+                logger.info("Event already processed: {}, skipping", id);
+                return;
+            }
+            logger.info("New event: {}, processing", id);
+      
 
         logger.info("Event converted to object: {}", event.getType());
 
@@ -89,23 +89,84 @@ public class StripeEventConsumer {
             case "invoice.paid": {
                 logger.info("Invoice paid event received");
                 Invoice invoice = (Invoice) stripeObject;
-
-                if(!invoice.getBillingReason().equals("subscription_create")) {
-                    Customer customer = customerService.getCustomerByCustomerId(customerId);
-                    customer.setSubscriptionStatus(Customer.SubscriptionStatus.ACTIVE);
-                    customerService.saveCustomer(customer);
-                    logger.info("Customer subscription status updated to active: {}", customer.getEmail());
-                } else {
-                    logger.info("Invoice not related to a subscription, ignoring");
-                    return;
-                }
-
-
+                customerService.updateCustomerFromInvoice(invoice);
                 break;
             }
+            case "invoice.payment_failed": {
+                logger.info("Invoice payment failed event received");
+                Invoice invoice = (Invoice) stripeObject;
+                customerService.updateCustomerFromInvoice(invoice);
+                logger.info("Customer subscription payment failed: {}", invoice.getCustomer());
+                break;
+            }
+            case "invoice.payment_succeeded": {
+                logger.info("Invoice payment succeeded event received");
+                Invoice invoice = (Invoice) stripeObject;
+                customerService.updateCustomerFromInvoice(invoice);
+                logger.info("Customer subscription payment succeeded: {}", invoice.getCustomer());
+                break;
+            }
+            case "invoice.payment_action_required": {
+                logger.info("Invoice payment action required event received");
+                Invoice invoice = (Invoice) stripeObject;
+                customerService.updateCustomerFromInvoice(invoice);
+                logger.info("Customer subscription payment action required: {}", invoice.getCustomer());
+                break;
+            }
+            
+            case "customer.subscription.created":{
+                com.stripe.model.Subscription subscription = (com.stripe.model.Subscription) stripeObject;
+                customerService.updateCustomerFromSubscription(subscription);
+                logger.info("Customer subscription created: {}", subscription.getCustomer());
+                break;
+            }
+            case "customer.subscription.updated":{
+                com.stripe.model.Subscription subscription = (com.stripe.model.Subscription) stripeObject;
+                customerService.updateCustomerFromSubscription(subscription);
+                logger.info("Customer subscription updated: {}", subscription.getCustomer());
+                break;
+            }
+            case "customer.subscription.deleted":{
+                com.stripe.model.Subscription subscription = (com.stripe.model.Subscription) stripeObject;
+                customerService.updateCustomerFromSubscription(subscription);
+                logger.info("Customer subscription deleted: {}", subscription.getCustomer());
+                break;
+            }
+            case "customer.subscription.paused":{
+                com.stripe.model.Subscription subscription = (com.stripe.model.Subscription) stripeObject;
+                customerService.updateCustomerFromSubscription(subscription);
+                logger.info("Customer subscription paused: {}", subscription.getCustomer());
+                break;
+            }
+            case "customer.subscription.resumed":{
+                com.stripe.model.Subscription subscription = (com.stripe.model.Subscription) stripeObject;
+                customerService.updateCustomerFromSubscription(subscription);
+                logger.info("Customer subscription resumed: {}", subscription.getCustomer());
+                break;
+            }
+            case "customer.subscription.unpaused":{
+                com.stripe.model.Subscription subscription = (com.stripe.model.Subscription) stripeObject;
+                customerService.updateCustomerFromSubscription(subscription);
+                logger.info("Customer subscription unpaused: {}", subscription.getCustomer());
+                break;
+            }
+            case "customer.subscription.trial_will_end":{
+                com.stripe.model.Subscription subscription = (com.stripe.model.Subscription) stripeObject;
+                customerService.updateCustomerFromSubscription(subscription);
+                logger.info("Customer subscription trial will end: {}", subscription.getCustomer());
+                break;
+            }
+            
             default:
                 logger.info("Unhandled event type: {}", event.getType());
         }
+
+            stripeProcessedEvent = new StripeProcessedEvent();
+            stripeProcessedEvent.setEventId(id);
+            stripeProcessedEvent.setEventType(event.getType());
+            stripeProcessedEvent.setProcessedAt(Instant.now());
+            stripeProcessedEventRepository.save(stripeProcessedEvent);
+            logger.info("Event saved successfully: {}", id);
     }
 
     

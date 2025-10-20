@@ -5,7 +5,8 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.util.List;
 
 @Entity
 @Getter
@@ -27,8 +28,8 @@ public class Customer {
     private String state;
     private String postalCode;
     private String country;
-    private LocalDateTime subscriptionStartDate;
-    private LocalDateTime subscriptionEndDate;
+    private Instant subscriptionStartDate;
+    private Instant subscriptionEndDate;
 
     @Enumerated(EnumType.STRING)
     private OfferType offerType;
@@ -36,7 +37,7 @@ public class Customer {
     @Enumerated(EnumType.STRING)
     private SubscriptionStatus subscriptionStatus;
 
-    public enum SubscriptionStatus {ACTIVE, PENDING, CANCELLED, PAST_DUE, TRIAL}
+    public enum SubscriptionStatus { TRIALING, ACTIVE, INCOMPLETE, INCOMPLETE_EXPIRED, PAST_DUE, CANCELED, UNPAID, PENDING, PAUSED, OPEN}
 
 
     public enum OfferType {BASIC, STANDARD, PRO}
@@ -50,7 +51,16 @@ public class Customer {
     private String stripePriceId;
     private String stripeProductId;
 
+    private String collectionMethodStripe;
     
+    @Enumerated(EnumType.STRING)
+    private PlanInterval planIntervalStripe;
+    public enum PlanInterval {MONTHLY, YEARLY}
+    
+
+    @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Device> devices;
+
     @Override
     public String toString() {
         return "Customer{" +
