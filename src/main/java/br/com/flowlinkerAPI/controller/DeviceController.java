@@ -20,9 +20,10 @@ public class DeviceController {
         this.deviceService = deviceService;
     }
 
-    @PostMapping
+    @PostMapping("/add")
     public ResponseEntity<AddDeviceResponseDTO> addDevice(@RequestBody AddDeviceRequestDTO addDeviceRequestDTO) {
-        return ResponseEntity.ok(deviceService.addDevice(addDeviceRequestDTO));
+        AddDeviceResponseDTO addDeviceResponseDTO = deviceService.addDevice(addDeviceRequestDTO);
+        return ResponseEntity.ok(new AddDeviceResponseDTO(addDeviceResponseDTO.getMessage()));
     }
 
 }

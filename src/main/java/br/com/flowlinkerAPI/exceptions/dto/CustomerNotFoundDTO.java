@@ -1,11 +1,10 @@
-package dto;
+package br.com.flowlinkerAPI.exceptions.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 @AllArgsConstructor
 @Getter
-public class AddDeviceResponseDTO {
+public class CustomerNotFoundDTO {
     private String message;
-    
 }

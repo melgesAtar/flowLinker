@@ -21,7 +21,7 @@ public class StripeCrontroller {
     @PostMapping("/webhook")
     public ResponseEntity<Void> webhook(@RequestBody String payload,
                                         @RequestHeader(value = "Stripe-Signature", required = false) String sigHeader) {
-        logger.info("Recebendo webhook do Stripe: {}", payload , "Signature: " + sigHeader);
+        logger.info("Recebido webhook do stripe");
         return stripeService.handleWebhook(payload, sigHeader);
     }
 }

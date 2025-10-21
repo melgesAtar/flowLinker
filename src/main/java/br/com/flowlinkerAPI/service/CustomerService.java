@@ -40,7 +40,7 @@ public class CustomerService {
         }
 
         int oldLimit = MAX_DEVICES.getOrDefault(oldOfferType, 0);
-        int newLimit = MAX_DEVICES.getOrDefault(customer.getOfferType(), 0);
+        int newLimit = MAX_DEVICES.getOrDefault(newOfferType, 0);
        
         if(newLimit < oldLimit) {
             deviceService.deleteByCustomerId(customer.getId());
@@ -134,19 +134,17 @@ public class CustomerService {
         }
 
         if (!invoice.getLines().getData().isEmpty()) {
-            var line = invoice.getLines().getData().get(0);
-            customer.setStripePriceId(line.getPricing().getPriceDetails().getPrice() != null ? line.getPricing().getPriceDetails().getPrice() : customer.getStripePriceId());
-            customer.setStripeProductId(line.getPricing().getPriceDetails().getProduct() != null ? line.getPricing().getPriceDetails().getProduct() : customer.getStripeProductId());
-            customer.setOfferType(mapPriceIdToOfferType(line.getPricing().getPriceDetails().getProduct() != null ? line.getPricing().getPriceDetails().getPrice() : customer.getStripeProductId()));
-            
-            adjustDevicesOnPlanChange(customer, customer.getOfferType(), mapPriceIdToOfferType(line.getPricing().getPriceDetails().getProduct() != null ? line.getPricing().getPriceDetails().getPrice() : customer.getStripeProductId()));
+            var line = pickPlanLine(invoice);
+
+            String priceId = line.getPricing().getPriceDetails().getPrice();
+            String productId = line.getPricing().getPriceDetails().getProduct();
+
+            customer.setStripePriceId(priceId != null ? priceId : customer.getStripePriceId());
+            customer.setStripeProductId(productId != null ? productId : customer.getStripeProductId());
         } else {
             logger.warn("Invoice without lines, keeping existing price/product");
         }
         customer.setCollectionMethodStripe(invoice.getCollectionMethod() != null ? invoice.getCollectionMethod() : customer.getCollectionMethodStripe());
-        customer.setSubscriptionStartDate(invoice.getPeriodStart() != null ? Instant.ofEpochSecond(invoice.getPeriodStart()) : customer.getSubscriptionStartDate());
-        customer.setSubscriptionEndDate(invoice.getPeriodEnd() != null ? Instant.ofEpochSecond(invoice.getPeriodEnd()) : customer.getSubscriptionEndDate());
-
         String status = invoice.getStatus();
         switch (status != null ? status : "unknown") {
             case "paid":
@@ -207,14 +205,19 @@ public class CustomerService {
         customer.setStripeSubscriptionId(subscription.getId() != null ? subscription.getId() : customer.getStripeSubscriptionId());  
 
         if (!subscription.getItems().getData().isEmpty()) {
-            var item = subscription.getItems().getData().get(0);
+            var item = subscription.getItems().getData().get(subscription.getItems().getData().size() - 1);
             customer.setSubscriptionStartDate(item.getCurrentPeriodStart() != null ? Instant.ofEpochSecond(item.getCurrentPeriodStart()) : customer.getSubscriptionStartDate());
             customer.setSubscriptionEndDate(item.getCurrentPeriodEnd() != null ? Instant.ofEpochSecond(item.getCurrentPeriodEnd()) : customer.getSubscriptionEndDate());
 
             if (item.getPrice() != null) {
                 customer.setStripePriceId(item.getPrice().getId() != null ? item.getPrice().getId() : customer.getStripePriceId());
                 customer.setStripeProductId(item.getPrice().getProduct() != null ? item.getPrice().getProduct() : customer.getStripeProductId());
-                customer.setOfferType(mapPriceIdToOfferType(customer.getStripeProductId()));  // Mapeia offerType baseado no product
+                
+                Customer.OfferType oldOfferType = customer.getOfferType();
+                Customer.OfferType newOfferType = mapPriceIdToOfferType(customer.getStripeProductId());
+                adjustDevicesOnPlanChange(customer, oldOfferType, newOfferType);
+                customer.setOfferType(newOfferType);
+
             } else {
                 logger.warn("Item without price, keeping existing price/product");
             }
@@ -310,7 +313,15 @@ public class CustomerService {
     public Customer getCustomerByStripeCustomerId(String stripeCustomerId) {
         return customerRepository.findByStripeCustomerId(stripeCustomerId).orElse(null);
     }
+
     public void saveCustomer(Customer customer) {
         customerRepository.save(customer);
+    }
+
+    private com.stripe.model.InvoiceLineItem pickPlanLine(com.stripe.model.Invoice invoice) {
+        return invoice.getLines().getData().stream()
+        .filter(line -> line.getPricing().getPriceDetails().getProduct().equals("prod_TF3UmhzoX6KOY0"))
+        .findFirst()
+        .orElse(invoice.getLines().getData().get(0));
     }
 }

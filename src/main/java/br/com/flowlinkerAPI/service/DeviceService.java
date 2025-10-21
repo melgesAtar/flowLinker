@@ -12,7 +12,7 @@ import java.util.Map;
 import java.util.HashMap;
 import dto.AddDeviceRequestDTO;
 import dto.AddDeviceResponseDTO;
-
+import br.com.flowlinkerAPI.exceptions.CustomerNotFoundException;
 
 @Service 
 public class DeviceService {
@@ -33,9 +33,10 @@ public class DeviceService {
     }
 
     @Transactional
-    public AddDeviceResponseDTO addDevice(AddDeviceRequestDTO addDeviceRequestDTO) {
+    public AddDeviceResponseDTO addDevice(AddDeviceRequestDTO addDeviceRequestDTO) throws CustomerNotFoundException {
+        
         Customer customer = customerRepository.findById(addDeviceRequestDTO.getCustomerId())
-            .orElseThrow(() -> new RuntimeException("Customer não encontrado"));
+            .orElseThrow(() -> new CustomerNotFoundException("Customer não encontrado"));
     
         int currentCount = deviceRepository.countByCustomerId(addDeviceRequestDTO.getCustomerId());
         int max = MAX_DEVICES.getOrDefault(customer.getOfferType(), 0);

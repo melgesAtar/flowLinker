@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bem-vindo à Flowlinker</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Helvetica Neue', Arial, sans-serif;
+      background-color: #f9fbff;
+      color: #1a1a1a;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+      overflow: hidden;
+    }
+    .header {
+      background: linear-gradient(135deg, #007bff, #00d4ff);
+      padding: 40px 0;
+      text-align: center;
+    }
+    .header img {
+      width: 80px;
+      margin-bottom: 10px;
+    }
+    .header h1 {
+      color: #fff;
+      margin: 0;
+      font-size: 24px;
+    }
+    .content {
+      padding: 40px 30px;
+    }
+    .content h2 {
+      color: #003366;
+      margin-top: 0;
+    }
+    .content p {
+      line-height: 1.6;
+      font-size: 15px;
+      color: #333;
+    }
+    .credentials {
+      background: #f2f7ff;
+      border-left: 4px solid #007bff;
+      padding: 15px 20px;
+      margin: 20px 0;
+      border-radius: 6px;
+    }
+    .credentials p {
+      margin: 5px 0;
+      font-family: monospace;
+    }
+    .button {
+      display: inline-block;
+      background: linear-gradient(135deg, #007bff, #00d4ff);
+      color: #fff !important;
+      text-decoration: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-weight: bold;
+      margin-top: 20px;
+    }
+    .footer {
+      text-align: center;
+      font-size: 13px;
+      color: #888;
+      padding: 25px;
+      background-color: #f5f9ff;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <img src="https://yourdomain.com/logo-flowlinker.png" alt="Flowlinker Logo" />
+      <h1>Bem-vindo à Flowlinker!</h1>
+    </div>
+    <div class="content">
+      <h2>Olá, {{username}} 👋</h2>
+      <p>
+        Sua conta foi criada com sucesso! Estamos muito felizes em ter você conosco.
+        Aqui estão seus dados de acesso:
+      </p>
+      <div class="credentials">
+        <p><strong>Usuário:</strong> {{username}}</p>
+        <p><strong>Senha:</strong> {{password}}</p>
+      </div>
+      <p>
+        Para começar, acesse seu painel e explore todas as funcionalidades:
+      </p>
+      <p style="text-align:center;">
+        <a href="https://app.flowlinker.com/login" class="button">Acessar Minha Conta</a>
+      </p>
+      <p>
+        Se precisar de ajuda, entre em contato com nossa equipe de suporte clicando 
+        <a href="https://flowlinker.com/suporte" target="_blank">aqui</a>.
+      </p>
+    </div>
+    <div class="footer">
+      © 2025 Flowlinker — Todos os direitos reservados.<br />
+      Este e-mail foi enviado automaticamente, não responda a esta mensagem.
+    </div>
+  </div>
+</body>
+</html>
