@@ -1,9 +1,11 @@
 package br.com.flowlinkerAPI.model;
 import jakarta.persistence.*;
 import lombok.Setter;
+import lombok.Getter;
 
 @Entity
 @Setter
+@Getter
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -1,6 +1,6 @@
 package br.com.flowlinkerAPI.exceptions;
 
-public class LimitDevicesException extends Exception {
+public class LimitDevicesException extends RuntimeException {
     public LimitDevicesException(String message) {
         super(message);
     }

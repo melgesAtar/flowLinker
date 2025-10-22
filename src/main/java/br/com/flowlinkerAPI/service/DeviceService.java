@@ -1,5 +1,6 @@
 package br.com.flowlinkerAPI.service;
 
+import br.com.flowlinkerAPI.exceptions.LimitDevicesException;
 import org.springframework.stereotype.Service;
 import br.com.flowlinkerAPI.repository.DeviceRepository;
 import br.com.flowlinkerAPI.model.Device;
@@ -10,8 +11,8 @@ import org.slf4j.LoggerFactory;
 import br.com.flowlinkerAPI.model.Customer;
 import java.util.Map;
 import java.util.HashMap;
-import dto.AddDeviceRequestDTO;
-import dto.AddDeviceResponseDTO;
+import br.com.flowlinkerAPI.dto.AddDeviceRequestDTO;
+import br.com.flowlinkerAPI.dto.AddDeviceResponseDTO;
 import br.com.flowlinkerAPI.exceptions.CustomerNotFoundException;
 
 @Service 
@@ -33,16 +34,16 @@ public class DeviceService {
     }
 
     @Transactional
-    public AddDeviceResponseDTO addDevice(AddDeviceRequestDTO addDeviceRequestDTO) throws CustomerNotFoundException {
+    public AddDeviceResponseDTO addDevice(AddDeviceRequestDTO addDeviceRequestDTO){
         
         Customer customer = customerRepository.findById(addDeviceRequestDTO.getCustomerId())
-            .orElseThrow(() -> new CustomerNotFoundException("Customer não encontrado"));
+            .orElseThrow(() -> new CustomerNotFoundException("Customer not found"));
     
         int currentCount = deviceRepository.countByCustomerId(addDeviceRequestDTO.getCustomerId());
         int max = MAX_DEVICES.getOrDefault(customer.getOfferType(), 0);
     
         if (currentCount >= max) {
-            throw new RuntimeException("Limite de devices excedido para plano " + customer.getOfferType() + " (máx: " + max + ")");
+           throw new LimitDevicesException("Limit of devices by employee reached " + customer.getOfferType() + " (máx: " + max + ")");
         }
 
         logger.info("Device adicionado para customer {} (plano: {}, devices atuais: {})", customer.getEmail(), customer.getOfferType(), currentCount + 1);

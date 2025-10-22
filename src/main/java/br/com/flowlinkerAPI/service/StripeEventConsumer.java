@@ -3,8 +3,6 @@ package br.com.flowlinkerAPI.service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
-import org.springframework.dao.DataIntegrityViolationException;
-
 import br.com.flowlinkerAPI.config.RabbitMQConfig;
 import com.stripe.model.*;
 import com.google.gson.JsonSyntaxException;
@@ -14,6 +12,9 @@ import br.com.flowlinkerAPI.repository.StripeProcessedEventRepository;
 import br.com.flowlinkerAPI.model.StripeProcessedEvent;
 import java.time.Instant;
 import org.springframework.transaction.annotation.Transactional;
+import br.com.flowlinkerAPI.service.email.EmailService;
+import br.com.flowlinkerAPI.exceptions.WelcomeEmailNotSendException;
+
 @Service
 public class StripeEventConsumer {
 
@@ -22,12 +23,14 @@ public class StripeEventConsumer {
     private final CustomerService customerService;
     private final UserService userService;
     private final StripeProcessedEventService stripeProcessedEventService;
-
-    public StripeEventConsumer(StripeProcessedEventRepository stripeProcessedEventRepository, CustomerService customerService, UserService userService, StripeProcessedEventService stripeProcessedEventService) {
+    private final EmailService emailService;
+    
+    public StripeEventConsumer(StripeProcessedEventRepository stripeProcessedEventRepository, CustomerService customerService, UserService userService, StripeProcessedEventService stripeProcessedEventService, EmailService emailService) {
         this.stripeProcessedEventRepository = stripeProcessedEventRepository;
         this.customerService = customerService;
         this.userService = userService;
         this.stripeProcessedEventService = stripeProcessedEventService;
+        this.emailService = emailService;
     }
    
     
@@ -78,10 +81,19 @@ public class StripeEventConsumer {
                 com.stripe.model.checkout.Session session = (com.stripe.model.checkout.Session) stripeObject;
 
                 var customer = customerService.upsertFromStripeCheckout(session);
-                var user = userService.createOrGetUserByEmail(customer.getEmail());
+                var result = userService.createOrGetUserWithPasswordReturn(customer.getEmail());
+                var user = result.getUser();
                 user.setCustomer(customer);
                 userService.saveUser(user);
 
+                if(result.isNewUser()) {
+                   try {
+                    emailService.sendWelcomeEmail(customer.getEmail(), user.getUsername(), result.getPlainPassword());
+                   } catch (WelcomeEmailNotSendException e) {
+                    logger.error("Error sending welcome email: {}", e.getMessage());
+                   }
+                }
+                
                 logger.info("Customer and user created successfully: {}", customer.getEmail());
                 break;
 

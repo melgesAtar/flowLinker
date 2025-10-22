@@ -7,6 +7,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import java.security.SecureRandom;
 import org.slf4j.*;
+import br.com.flowlinkerAPI.dto.CreatedUserResultDTO;
 
 @Service
 public class UserService {
@@ -28,11 +29,24 @@ public class UserService {
             User newUser = new User();
             newUser.setUsername(email);
             String randomPassword = generateRandomPassword(12);
-            logger.info("Generated password for user " + email + ": " + randomPassword);
             String hashedPassword = passwordEncoder.encode(randomPassword);
             newUser.setPassword(hashedPassword);
             return userRepository.save(newUser);
         });
+    }
+
+    public CreatedUserResultDTO createOrGetUserWithPasswordReturn(String email) {
+        return userRepository.findByUsername(email)
+            .map(u -> new CreatedUserResultDTO(u, false, null))
+            .orElseGet(() -> {
+                User newUser = new User();
+                newUser.setUsername(email);
+                String randomPassword = generateRandomPassword(12);
+                String hashedPassword = passwordEncoder.encode(randomPassword);
+                newUser.setPassword(hashedPassword);
+                User saved = userRepository.save(newUser);
+                return new CreatedUserResultDTO(saved, true, randomPassword);
+            });
     }
 
 

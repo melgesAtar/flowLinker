@@ -34,7 +34,7 @@ public class StripeService {
         Event event = null;
 
 
-        logger.info("Payload do Stripe: {}", payload);
+
 
         try {
             event = Webhook.constructEvent(payload, sigHeader, endpointSecret);

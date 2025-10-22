@@ -21,7 +21,7 @@ public class CustomerService {
     private final DeviceService deviceService; 
     private static final Map<Customer.OfferType, Integer> MAX_DEVICES = new HashMap<>();
     static {
-        MAX_DEVICES.put(Customer.OfferType.BASIC, 3);
+        MAX_DEVICES.put(Customer.OfferType.BASIC, 2);
         MAX_DEVICES.put(Customer.OfferType.STANDARD, 5);
         MAX_DEVICES.put(Customer.OfferType.PRO, 10);
     }

@@ -1,4 +1,4 @@
-package dto;
+package br.com.flowlinkerAPI.dto;
 
 import lombok.Getter;
 import lombok.Setter;
