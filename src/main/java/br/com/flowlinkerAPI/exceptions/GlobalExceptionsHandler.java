@@ -11,12 +11,7 @@ import br.com.flowlinkerAPI.exceptions.dto.WelcomeEmailNotSendExceptionDTO;
 @RestControllerAdvice
 public class GlobalExceptionsHandler {
     
- 
 
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<String> handleException(Exception e) {
-        return ResponseEntity.status(500).body("Erro interno do servidor");
-    }
 
     @ExceptionHandler(CustomerNotFoundException.class)
     public ResponseEntity<CustomerNotFoundDTO> handleCustomerNotFound(CustomerNotFoundException e) {

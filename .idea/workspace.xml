@@ -6,20 +6,11 @@
   <component name="ChangeListManager">
     <list default="true" id="f618b63f-b518-4e77-a414-7ad3357a0a48" name="Changes" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/br/com/flowlinkerAPI/controller/DeviceController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/flowlinkerAPI/controller/DeviceController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/br/com/flowlinkerAPI/config/SecurityConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/flowlinkerAPI/config/SecurityConfig.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/br/com/flowlinkerAPI/exceptions/GlobalExceptionsHandler.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/flowlinkerAPI/exceptions/GlobalExceptionsHandler.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/br/com/flowlinkerAPI/exceptions/LimitDevicesException.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/flowlinkerAPI/exceptions/LimitDevicesException.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/br/com/flowlinkerAPI/model/User.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/flowlinkerAPI/model/User.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/br/com/flowlinkerAPI/repository/UserRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/flowlinkerAPI/repository/UserRepository.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/br/com/flowlinkerAPI/resources/static/welcome.html" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/static/welcome.html" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/br/com/flowlinkerAPI/service/CustomerService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/flowlinkerAPI/service/CustomerService.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/br/com/flowlinkerAPI/service/DeviceService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/flowlinkerAPI/service/DeviceService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/br/com/flowlinkerAPI/service/StripeEventConsumer.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/flowlinkerAPI/service/StripeEventConsumer.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/br/com/flowlinkerAPI/service/StripeService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/flowlinkerAPI/service/StripeService.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/br/com/flowlinkerAPI/service/UserService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/flowlinkerAPI/service/UserService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/br/com/flowlinkerAPI/service/email/Smtp2GoClient.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/br/com/flowlinkerAPI/service/email/Smtp2GoClient.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/dto/AddDeviceRequestDTO.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/dto/AddDeviceResponseDTO.java" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />

@@ -9,11 +9,13 @@ import br.com.flowlinkerAPI.repository.CustomerRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import br.com.flowlinkerAPI.model.Customer;
+import br.com.flowlinkerAPI.model.Customer.OfferType;
 import java.util.Map;
 import java.util.HashMap;
 import br.com.flowlinkerAPI.dto.AddDeviceRequestDTO;
 import br.com.flowlinkerAPI.dto.AddDeviceResponseDTO;
 import br.com.flowlinkerAPI.exceptions.CustomerNotFoundException;
+
 
 @Service 
 public class DeviceService {
@@ -28,9 +30,9 @@ public class DeviceService {
 
     private static final Map<Customer.OfferType, Integer> MAX_DEVICES = new HashMap<>();
     static {
-        MAX_DEVICES.put(Customer.OfferType.BASIC, 3);
-        MAX_DEVICES.put(Customer.OfferType.STANDARD, 5);
-        MAX_DEVICES.put(Customer.OfferType.PRO, 10);
+        MAX_DEVICES.put(OfferType.BASIC, 2);
+        MAX_DEVICES.put(OfferType.STANDARD, 5);
+        MAX_DEVICES.put(OfferType.PRO, 10);
     }
 
     @Transactional

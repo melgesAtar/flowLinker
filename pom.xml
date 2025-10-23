@@ -86,6 +86,48 @@
             <artifactId>spring-boot-starter-amqp</artifactId>
             <version>3.3.0</version>
         </dependency>
+
+        <!-- https://mvnrepository.com/artifact/org.springframework.data/spring-data-redis -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        <!-- ... existing code ... (outras dependências) -->
+
+<!-- Atualização de jjwt para versão moderna (resolve dependências javax) -->
+<dependency>
+    <groupId>io.jsonwebtoken</groupId>
+    <artifactId>jjwt-api</artifactId>  <!-- API separada na nova versão -->
+    <version>0.12.6</version>
+</dependency>
+<dependency>
+    <groupId>io.jsonwebtoken</groupId>
+    <artifactId>jjwt-impl</artifactId>  <!-- Implementação -->
+    <version>0.12.6</version>
+    <scope>runtime</scope>
+</dependency>
+<dependency>
+    <groupId>io.jsonwebtoken</groupId>
+    <artifactId>jjwt-jackson</artifactId>  <!-- Para JSON parsing, se usar Jackson -->
+    <version>0.12.6</version>
+    <scope>runtime</scope>
+</dependency>
+
+<!-- JAXB para compatibilidade (necessário em Java 11+) -->
+<dependency>
+    <groupId>jakarta.xml.bind</groupId>
+    <artifactId>jakarta.xml.bind-api</artifactId>
+    <version>4.0.2</version>
+</dependency>
+<dependency>
+    <groupId>org.glassfish.jaxb</groupId>
+    <artifactId>jaxb-runtime</artifactId>
+    <version>4.0.5</version>
+    <scope>runtime</scope>
+</dependency>
+
+<!-- ... existing code ... (resto do pom.xml) -->
+  
     </dependencies>
 
     <build>
