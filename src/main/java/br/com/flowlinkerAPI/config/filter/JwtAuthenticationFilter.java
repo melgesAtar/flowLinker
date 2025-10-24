@@ -18,13 +18,15 @@ import java.util.ArrayList;
 import io.jsonwebtoken.security.Keys;
 import java.nio.charset.StandardCharsets;
 import javax.crypto.SecretKey;
+import jakarta.servlet.http.Cookie;
 
 @Component
 public class JwtAuthenticationFilter extends BasicAuthenticationFilter {
 
     private final RedisTemplate<String, String> redisTemplate;
+   
     @Value("${jwt.secret}")
-    private final String jwtSecret = "Bolinho21!";
+    private String jwtSecret;
 
     public JwtAuthenticationFilter(AuthenticationManager authenticationManager, RedisTemplate<String, String> redisTemplate) {
         super(authenticationManager);
@@ -35,21 +37,36 @@ public class JwtAuthenticationFilter extends BasicAuthenticationFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws IOException, ServletException {
         String header = request.getHeader("Authorization");
+        String token = null;
 
-        if (header == null || !header.startsWith("Bearer ")) {
+        if(header != null && header.startsWith("Bearer ")) {
+            token = header.replace("Bearer ", "");
+        }else{
+            Cookie[] cookies = request.getCookies();
+            if(cookies != null) {
+                for(Cookie cookie : cookies) {
+                    if("jwtToken".equals(cookie.getName())) {
+                        token = cookie.getValue();
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (token == null) {
             chain.doFilter(request, response);
             return;
         }
 
-        UsernamePasswordAuthenticationToken authentication = getAuthentication(request);
+        UsernamePasswordAuthenticationToken authentication = getAuthentication(request, token);
         SecurityContextHolder.getContext().setAuthentication(authentication);
         chain.doFilter(request, response);
     }
 
-    private UsernamePasswordAuthenticationToken getAuthentication(HttpServletRequest request) {
-        String token = request.getHeader("Authorization").replace("Bearer ", "");
-        String type = request.getHeader("X-Auth-Type");  // Cabeçalho opcional para tipo
-        String fingerprint = request.getHeader("X-Fingerprint");  // Atualizado para fingerprint
+    private UsernamePasswordAuthenticationToken getAuthentication(HttpServletRequest request, String token) { 
+        
+        String type = request.getHeader("X-Auth-Type"); 
+        String fingerprint = request.getHeader("X-Fingerprint"); 
 
        
         SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
@@ -64,7 +81,7 @@ public class JwtAuthenticationFilter extends BasicAuthenticationFilter {
         String redisKey;
         if ("device".equals(claims.get("type"))) {
             if (fingerprint == null || !fingerprint.equals(claims.get("fingerprint"))) {
-                return null;  // Fingerprint não bate
+                return null;  
             }
             redisKey = "device:token:" + fingerprint;
         } else {

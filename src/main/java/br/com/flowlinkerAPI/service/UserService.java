@@ -21,6 +21,9 @@ import br.com.flowlinkerAPI.repository.CustomerRepository;
 import br.com.flowlinkerAPI.exceptions.LimitDevicesException;
 import org.springframework.beans.factory.annotation.Value;
 import java.time.Duration;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
+import br.com.flowlinkerAPI.exceptions.CustomerNotFoundException;
 
 @Service
 public class UserService {
@@ -87,7 +90,7 @@ public class UserService {
         return userRepository.save(user);
     }
 
-    public String loginAndGenerateToken(String username, String password, String type, String fingerprint) {
+    public String loginAndGenerateToken(String username, String password, String type, String fingerprint, HttpServletResponse response) {
         User user = userRepository.findByUsername(username)
             .orElseThrow(() -> new RuntimeException("User not found"));
         
@@ -95,12 +98,13 @@ public class UserService {
             throw new RuntimeException("Invalid password");
         }
         
-        long expirationMillis = "device".equals(type) ? 604800000L : 86400000L;  
+        long expirationMillis = "device".equals(type) ? 604800000L : 86400000L;     
         
         Map<String, Object> claims = new HashMap<>();
         claims.put("type", type);
         
         String redisKey;
+        
         if ("device".equals(type)) {
             if (fingerprint == null || fingerprint.isEmpty()) {
                 throw new RuntimeException("Fingerprint required for device authentication");
@@ -110,10 +114,10 @@ public class UserService {
             Device device = deviceRepository.findByFingerprint(fingerprint)
                 .orElseGet(() -> {
                     Customer customer = customerRepository.findById(user.getCustomer().getId())
-                        .orElseThrow(() -> new RuntimeException("Customer not found"));
+                        .orElseThrow(() -> new CustomerNotFoundException("Customer not found for user " + username));
                     
                     int currentCount = deviceRepository.countByCustomerId(customer.getId());
-                    int max = getMaxDevices(customer.getOfferType());  // Método helper ou mapa
+                    int max = getMaxDevices(customer.getOfferType());  
                     
                     if (currentCount >= max) {
                         throw new LimitDevicesException("Device limit reached");
@@ -125,7 +129,6 @@ public class UserService {
                     newDevice.setCustomer(customer);
                     return deviceRepository.save(newDevice);
                 });
-            
             redisKey = "device:token:" + fingerprint;
         } else {
             redisKey = type + ":token:" + username;
@@ -139,9 +142,23 @@ public class UserService {
             .signWith(SignatureAlgorithm.HS512, jwtSecret)
             .compact();
         
+            if("web".equals(type)) {
+                Cookie cookie = new Cookie("jwtToken", token);
+                cookie.setHttpOnly(true);
+                cookie.setSecure(true);
+                cookie.setMaxAge(86400);
+                cookie.setPath("/");
+                response.addCookie(cookie);
+                
+                redisTemplate.opsForValue().set(redisKey, token, Duration.ofMillis(expirationMillis));
+
+                return null;
+
+            }
+
             redisTemplate.opsForValue().set(redisKey, token, Duration.ofMillis(expirationMillis));
+            return token;
         
-        return token;
     }
 
     private int getMaxDevices(Customer.OfferType offerType) {
