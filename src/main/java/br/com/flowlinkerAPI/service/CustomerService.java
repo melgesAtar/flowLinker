@@ -43,8 +43,8 @@ public class CustomerService {
         int newLimit = MAX_DEVICES.getOrDefault(newOfferType, 0);
        
         if(newLimit < oldLimit) {
-            deviceService.deleteByCustomerId(customer.getId());
-            logger.info("Downgrade detected: all devices deleted for customer {}", customer.getEmail());
+            deviceService.deactivateByCustomerId(customer.getId());
+            logger.info("Downgrade detected: all devices inactivated for customer {}", customer.getEmail());
         }else{
             logger.info("Upgrade detected: devices kept, new limit {} for customer {}", newLimit, customer.getEmail());
         }
@@ -250,6 +250,7 @@ public class CustomerService {
             case "canceled":
                 customer.setSubscriptionStatus(Customer.SubscriptionStatus.CANCELED);
                 logger.info("Subscription canceled: updating to CANCELED for {}", customer.getEmail());
+                deviceService.deactivateByCustomerId(customer.getId());
                 break;
             case "unpaid":
                 customer.setSubscriptionStatus(Customer.SubscriptionStatus.UNPAID);

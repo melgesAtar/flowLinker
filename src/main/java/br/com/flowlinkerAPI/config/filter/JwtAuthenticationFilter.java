@@ -11,8 +11,6 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
-import org.springframework.stereotype.Component;
-import org.springframework.beans.factory.annotation.Value;
 import java.io.IOException;
 import java.util.ArrayList;
 import io.jsonwebtoken.security.Keys;
@@ -20,17 +18,17 @@ import java.nio.charset.StandardCharsets;
 import javax.crypto.SecretKey;
 import jakarta.servlet.http.Cookie;
 
-@Component
+
 public class JwtAuthenticationFilter extends BasicAuthenticationFilter {
 
     private final RedisTemplate<String, String> redisTemplate;
    
-    @Value("${jwt.secret}")
     private String jwtSecret;
 
-    public JwtAuthenticationFilter(AuthenticationManager authenticationManager, RedisTemplate<String, String> redisTemplate) {
+    public JwtAuthenticationFilter(AuthenticationManager authenticationManager, RedisTemplate<String, String> redisTemplate, String jwtSecret) {
         super(authenticationManager);
         this.redisTemplate = redisTemplate;
+        this.jwtSecret = jwtSecret;
     }
 
     @Override
@@ -83,7 +81,11 @@ public class JwtAuthenticationFilter extends BasicAuthenticationFilter {
             if (fingerprint == null || !fingerprint.equals(claims.get("fingerprint"))) {
                 return null;  
             }
-            redisKey = "device:token:" + fingerprint;
+            Object customerIdClaim = claims.get("customerId");
+            if (customerIdClaim == null) {
+                return null;
+            }
+            redisKey = "device:token:" + customerIdClaim + ":" + fingerprint;
         } else {
             redisKey = (type != null ? type : "web") + ":token:" + claims.getSubject();
         }
@@ -99,4 +101,11 @@ public class JwtAuthenticationFilter extends BasicAuthenticationFilter {
     }
 
   
+    @Override
+protected boolean shouldNotFilter(HttpServletRequest request) {
+    String path = request.getServletPath();
+    return path.startsWith("/auth/login")
+        || path.startsWith("/stripe/")
+        || "OPTIONS".equalsIgnoreCase(request.getMethod());
+}
 }

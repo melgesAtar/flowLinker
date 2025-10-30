@@ -4,6 +4,7 @@ import br.com.flowlinkerAPI.exceptions.LimitDevicesException;
 import org.springframework.stereotype.Service;
 import br.com.flowlinkerAPI.repository.DeviceRepository;
 import br.com.flowlinkerAPI.model.Device;
+import br.com.flowlinkerAPI.model.DeviceStatus;
 import org.springframework.transaction.annotation.Transactional;
 import br.com.flowlinkerAPI.repository.CustomerRepository;
 import org.slf4j.Logger;
@@ -41,7 +42,7 @@ public class DeviceService {
         Customer customer = customerRepository.findById(addDeviceRequestDTO.getCustomerId())
             .orElseThrow(() -> new CustomerNotFoundException("Customer not found"));
     
-        int currentCount = deviceRepository.countByCustomerId(addDeviceRequestDTO.getCustomerId());
+        int currentCount = deviceRepository.countByCustomerIdAndStatus(addDeviceRequestDTO.getCustomerId(), DeviceStatus.ACTIVE);
         int max = MAX_DEVICES.getOrDefault(customer.getOfferType(), 0);
     
         if (currentCount >= max) {
@@ -54,13 +55,18 @@ public class DeviceService {
         newDevice.setFingerprint(addDeviceRequestDTO.getFingerprint());
         newDevice.setName(addDeviceRequestDTO.getName());
         newDevice.setCustomer(customer);
+        newDevice.setStatus(DeviceStatus.ACTIVE);
         deviceRepository.save(newDevice);
 
         return new AddDeviceResponseDTO("Device added successfully for customer " + customer.getEmail() + "Device: " + newDevice.getFingerprint());
     }
 
-    public void deleteByCustomerId(Long customerId) {
-        deviceRepository.deleteByCustomerId(customerId);
+    public void deactivateByCustomerId(Long customerId) {
+        var devices = deviceRepository.findByCustomerId(customerId);
+        for (Device d : devices) {
+            d.setStatus(DeviceStatus.INACTIVE);
+        }
+        deviceRepository.saveAll(devices);
     }
 
     public void saveDevice(Device device) {
