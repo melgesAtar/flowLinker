@@ -17,6 +17,7 @@ import io.jsonwebtoken.security.Keys;
 import java.nio.charset.StandardCharsets;
 import javax.crypto.SecretKey;
 import jakarta.servlet.http.Cookie;
+import br.com.flowlinkerAPI.config.security.CurrentUser;
 
 
 public class JwtAuthenticationFilter extends BasicAuthenticationFilter {
@@ -94,7 +95,16 @@ public class JwtAuthenticationFilter extends BasicAuthenticationFilter {
 
         if (storedToken != null && storedToken.equals(token)) {
             if (claims.getSubject() != null) {
-                return new UsernamePasswordAuthenticationToken(claims.getSubject(), null, new ArrayList<>());
+                String username = claims.getSubject();
+                Long customerId = null;
+                Object cid = claims.get("customerId");
+                if (cid instanceof Number) {
+                    customerId = ((Number) cid).longValue();
+                } else if (cid instanceof String) {
+                    try { customerId = Long.parseLong((String) cid); } catch (Exception ignored) {}
+                }
+                CurrentUser principal = new CurrentUser(username, customerId);
+                return new UsernamePasswordAuthenticationToken(principal, null, new ArrayList<>());
             }
         }
         return null;

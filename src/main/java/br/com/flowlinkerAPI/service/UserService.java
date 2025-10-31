@@ -195,6 +195,10 @@ public class UserService {
     
             redisKey = "device:token:" + customerId + ":" + fingerprint;
         } else {
+            // incluir customerId também para web
+            if (user.getCustomer() != null && user.getCustomer().getId() != null) {
+                claims.put("customerId", user.getCustomer().getId());
+            }
             redisKey = type + ":token:" + username;
         }
             
