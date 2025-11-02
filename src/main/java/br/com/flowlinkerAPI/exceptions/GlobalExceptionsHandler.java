@@ -62,4 +62,6 @@ public class GlobalExceptionsHandler {
             "message", e.getMessage()
         ));
     }
+
+
 }

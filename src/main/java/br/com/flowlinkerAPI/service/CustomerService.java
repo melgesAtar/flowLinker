@@ -12,7 +12,8 @@ import com.stripe.model.Subscription;
 import java.util.Map;
 import java.util.HashMap;
 import org.springframework.transaction.annotation.Transactional;
-
+import br.com.flowlinkerAPI.exceptions.CustomerNotFoundException;
+import java.util.Optional;
 @Service
 public class CustomerService {
 
@@ -324,5 +325,9 @@ public class CustomerService {
         .filter(line -> line.getPricing().getPriceDetails().getProduct().equals("prod_TF3UmhzoX6KOY0"))
         .findFirst()
         .orElse(invoice.getLines().getData().get(0));
+    }
+
+    public Customer findById(Long id) {
+        return customerRepository.findById(id).orElseThrow(() -> new CustomerNotFoundException("Customer not found"));
     }
 }

@@ -20,4 +20,17 @@ public interface SocialMediaAccountRepository extends JpaRepository<SocialMediaA
         SocialMediaAccount.SocialMediaPlatform platform,
         SocialMediaAccount.SocialMediaAccountStatus status
     );
+
+    boolean existsByCustomerIdAndPlatformAndUsernameIgnoreCase(
+    Long customerId,
+    SocialMediaAccount.SocialMediaPlatform platform,
+    String username
+    );
+
+    boolean existsByCustomerIdAndPlatformAndUsernameIgnoreCaseAndIdNot(
+        Long customerId,
+        SocialMediaAccount.SocialMediaPlatform platform,
+        String username,
+        Long id
+    );
 }

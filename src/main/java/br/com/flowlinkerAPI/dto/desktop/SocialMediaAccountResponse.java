@@ -6,7 +6,7 @@ public class SocialMediaAccountResponse {
     public Long id;
     public String platform;              
     public String username;              
-    public String nomePerfil;            
+    public String perfilName;            
     public String status;               
     public boolean hasCookies;          
     public LocalDateTime cookiesUpdatedAt;

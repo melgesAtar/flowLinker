@@ -13,9 +13,10 @@ import jakarta.persistence.JoinColumn;
 import java.time.LocalDateTime;
 import br.com.flowlinkerAPI.model.Customer;
 import lombok.Getter;
-
+import lombok.Setter;
 @Entity
 @Getter
+@Setter
 public class SocialMediaAccount {
     
     @Id
