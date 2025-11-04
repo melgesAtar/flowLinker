@@ -20,6 +20,9 @@ import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import br.com.flowlinkerAPI.dto.desktop.SocialMediaAccountStatusPatch;
 import br.com.flowlinkerAPI.dto.desktop.SocialMediaAccountUpdateRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import br.com.flowlinkerAPI.config.security.CurrentRequest;
 
 @Service
 public class SocialMediaAccountService {
@@ -27,13 +30,18 @@ public class SocialMediaAccountService {
     private final SocialMediaAccountRepository socialMediaAccountRepository;
     private final ObjectMapper mapper = new ObjectMapper();
     private final CustomerService customerService;
+    private static final Logger logger = LoggerFactory.getLogger(SocialMediaAccountService.class);
+    private final CurrentRequest currentRequest;
 
-    public SocialMediaAccountService(SocialMediaAccountRepository socialMediaAccountRepository, CustomerService customerService) {
+    public SocialMediaAccountService(SocialMediaAccountRepository socialMediaAccountRepository, CustomerService customerService, CurrentRequest currentRequest) {
         this.customerService = customerService;
         this.socialMediaAccountRepository = socialMediaAccountRepository;
+        this.currentRequest = currentRequest;
     }
 
     public SocialMediaAccountResponse createAccount(SocialMediaAccountCreateRequest request, Long customerId) {
+        logger.info("Criando conta social platform={} username={} customerId={}",
+            (request != null ? request.platform : null), (request != null ? request.username : null), String.valueOf(customerId));
         if(request == null || request.platform == null || request.username == null || request.profileName == null || request.profileName.isBlank()) {
             throw new IllegalArgumentException("Invalid request");
         }
@@ -53,14 +61,23 @@ public class SocialMediaAccountService {
         account.setCustomer(customer);
         account.setPlatform(platform);
         account.setUsername(request.username);
+        account.setPassword(request.password);
         account.setName(request.profileName);
         account.setStatus(SocialMediaAccount.SocialMediaAccountStatus.ACTIVE);
 
+        // Relaciona com o device do contexto (se for requisição de device)
+        var device = currentRequest.getDevice();
+        if (device != null) {
+            account.setDevice(device);
+        }
+
         var saved = socialMediaAccountRepository.save(account);
+        logger.info("Conta social criada id={} platform={} username={} customerId={}", String.valueOf(saved.getId()), saved.getPlatform(), saved.getUsername(), String.valueOf(customerId));
         return toResponse(saved);
     }
 
     public SocialMediaAccountResponse updateAccount(Long id, Long customerId, SocialMediaAccountUpdateRequest body) {
+        logger.info("Atualizando conta social id={} customerId={}", String.valueOf(id), String.valueOf(customerId));
         var acc = socialMediaAccountRepository.findById(id).orElseThrow( () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Conta não encontrada"));
         
         if(acc.getCustomer() == null || !acc.getCustomer().getId().equals(customerId)) {
@@ -105,11 +122,13 @@ public class SocialMediaAccountService {
         acc.setUpdatedAt(java.time.LocalDateTime.now());
     
         var saved = socialMediaAccountRepository.save(acc);
+        logger.info("Conta social atualizada id={} platform={} username={}", String.valueOf(saved.getId()), saved.getPlatform(), saved.getUsername());
         return toResponse(saved);
 
     }
 
     public void replaceCookies(Long id, Long customerId, List<SocialCookieDTO> cookies) {
+        logger.info("Substituindo cookies id={} customerId={} qtdCookies={} (conteúdo não logado)", String.valueOf(id), String.valueOf(customerId), (cookies != null ? cookies.size() : 0));
         var acc = socialMediaAccountRepository.findById(id).orElseThrow( () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Conta não encontrada"));
         if (acc.getCustomer() == null || !acc.getCustomer().getId().equals(customerId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Conta de outro cliente");
@@ -143,12 +162,14 @@ public class SocialMediaAccountService {
             setCookies(acc, json, minExpiry);
             socialMediaAccountRepository.save(acc);
         } catch (Exception e) {
+            logger.error("Erro ao salvar cookies para id={}: {}", String.valueOf(id), e.getMessage());
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Falha ao salvar cookies");
         }
     
     }
 
     public SocialMediaAccountResponse updateStatus(Long id, Long customerId, SocialMediaAccountStatusPatch body) {
+        logger.info("Atualizando status da conta id={} customerId={} novoStatus={} ", String.valueOf(id), String.valueOf(customerId), (body != null ? body.status : null));
         if(body == null || body.status == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Status Invalido");
         }
@@ -166,10 +187,12 @@ public class SocialMediaAccountService {
         }
         acc.setStatus(newStatus);
         var saved = socialMediaAccountRepository.save(acc);
+        logger.info("Status atualizado id={} statusNovo={}", String.valueOf(saved.getId()), saved.getStatus());
         return toResponse(saved);
     }
 
     public void softDelete(Long id, Long customerId) {
+        logger.info("Soft delete conta social id={} customerId={}", String.valueOf(id), String.valueOf(customerId));
         var acc = socialMediaAccountRepository.findById(id).orElseThrow( () -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Conta não encontrada"));
         if(acc.getCustomer().getId() != customerId){
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Conta de outro cliente");
@@ -179,18 +202,21 @@ public class SocialMediaAccountService {
     }
 
     public List<SocialMediaAccountResponse> listAccountsForPlatform(String platform, Long customerId) {
+        logger.info("Listando contas platform={} customerId={}", platform, customerId);
         var p = SocialMediaAccount.SocialMediaPlatform.valueOf(platform.toUpperCase());
         var rows = socialMediaAccountRepository.findAllByCustomerIdAndPlatformAndStatusNot(
             customerId,
             p,
             SocialMediaAccount.SocialMediaAccountStatus.DELETED
         );
+        logger.info("Encontradas {} contas para platform={} customerId={}", rows.size(), platform, String.valueOf(customerId));
         var out = new ArrayList<SocialMediaAccountResponse>();
         for (var a : rows) {
             var dto = new SocialMediaAccountResponse();
             dto.id = a.getId();
             dto.platform = a.getPlatform().name();
             dto.username = a.getUsername();
+            dto.password = a.getPassword();
             dto.perfilName = a.getName();
             dto.status = mapStatusToPt(a.getStatus());
             dto.hasCookies = a.getCookiesJson() != null && !a.getCookiesJson().isBlank();

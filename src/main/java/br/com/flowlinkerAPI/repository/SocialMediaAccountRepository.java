@@ -4,6 +4,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import br.com.flowlinkerAPI.model.SocialMediaAccount;
 import org.springframework.stereotype.Repository;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface SocialMediaAccountRepository extends JpaRepository<SocialMediaAccount, Long> {
@@ -33,4 +34,6 @@ public interface SocialMediaAccountRepository extends JpaRepository<SocialMediaA
         String username,
         Long id
     );
+
+    Optional<SocialMediaAccount> findFirstByCustomerIdAndUsernameIgnoreCase(Long customerId, String username);
 }

@@ -5,7 +5,8 @@ import java.time.LocalDateTime;
 public class SocialMediaAccountResponse {
     public Long id;
     public String platform;              
-    public String username;              
+    public String username;     
+    public String password;         
     public String perfilName;            
     public String status;               
     public boolean hasCookies;          

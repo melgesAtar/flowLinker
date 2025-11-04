@@ -103,7 +103,9 @@ public class JwtAuthenticationFilter extends BasicAuthenticationFilter {
                 } else if (cid instanceof String) {
                     try { customerId = Long.parseLong((String) cid); } catch (Exception ignored) {}
                 }
-                CurrentUser principal = new CurrentUser(username, customerId);
+                String tokenType = String.valueOf(claims.get("type"));
+                String deviceFp = "device".equals(tokenType) ? fingerprint : null;
+                CurrentUser principal = new CurrentUser(username, customerId, deviceFp);
                 return new UsernamePasswordAuthenticationToken(principal, null, new ArrayList<>());
             }
         }

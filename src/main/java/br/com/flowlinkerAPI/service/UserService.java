@@ -109,6 +109,7 @@ public class UserService {
         if (!passwordEncoder.matches(password, user.getPassword())) {
             throw new BadCredentialsException("Invalid Credentials");
         }
+        logger.info("Login bem-sucedido username={} type={} customerId={}", username, type, (user.getCustomer() != null ? String.valueOf(user.getCustomer().getId()) : null));
         
         long expirationMillis = "device".equals(type) ? 604800000L : 86400000L;     
         
@@ -118,6 +119,7 @@ public class UserService {
         String redisKey;
         
         if ("device".equals(type)) {
+            logger.info("Fluxo device authentication username={} deviceId={} fingerprint={}", username, deviceId, fingerprint);
             if (fingerprint == null || fingerprint.isEmpty())
                 throw new IllegalArgumentException("Fingerprint required for device authentication");
     
@@ -160,6 +162,8 @@ public class UserService {
                 newDevice.setLastIp(extractClientIp(request));
                 newDevice.setLastSeenAt(java.time.Instant.now());
                 device = deviceRepository.save(newDevice);
+                logger.info("Novo device cadastrado customerId={} deviceId={} fingerprint={} os={} {} app={} ip={}",
+                    String.valueOf(customerId), deviceId, fingerprint, osName, osVersion, appVersion, newDevice.getLastIp());
             } else {
                 if (device.getStatus() == DeviceStatus.INACTIVE){
                     int active = deviceRepository.countByCustomerIdAndStatus(customerId, DeviceStatus.ACTIVE);
@@ -191,6 +195,8 @@ public class UserService {
     
                 device.setLastSeenAt(java.time.Instant.now());
                 deviceRepository.save(device);
+                logger.info("Device atualizado customerId={} deviceId={} fingerprint={} os={} {} app={} ip={} status={}",
+                    String.valueOf(customerId), device.getDeviceId(), device.getFingerprint(), device.getOsName(), device.getOsVersion(), device.getAppVersion(), device.getLastIp(), device.getStatus());
             }
     
             redisKey = "device:token:" + customerId + ":" + fingerprint;
@@ -200,6 +206,7 @@ public class UserService {
                 claims.put("customerId", user.getCustomer().getId());
             }
             redisKey = type + ":token:" + username;
+            logger.info("Fluxo web authentication username={} customerId={}", username, (user.getCustomer() != null ? String.valueOf(user.getCustomer().getId()) : null));
         }
             
         
@@ -224,12 +231,13 @@ public class UserService {
                 response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
                 
                 redisTemplate.opsForValue().set(redisKey, token, Duration.ofMillis(expirationMillis));
-
+                logger.info("Token web emitido username={} expMs={}", username, expirationMillis);
                 return null;
 
             }
 
             redisTemplate.opsForValue().set(redisKey, token, Duration.ofMillis(expirationMillis));
+            logger.info("Token device emitido username={} fingerprint={} expMs={}", username, fingerprint, expirationMillis);
             return token;
         
     }

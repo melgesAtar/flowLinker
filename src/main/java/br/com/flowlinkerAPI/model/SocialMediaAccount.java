@@ -12,6 +12,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.JoinColumn;
 import java.time.LocalDateTime;
 import br.com.flowlinkerAPI.model.Customer;
+import br.com.flowlinkerAPI.model.Device;
 import lombok.Getter;
 import lombok.Setter;
 @Entity
@@ -47,6 +48,10 @@ public class SocialMediaAccount {
 
     private LocalDateTime createdAt = LocalDateTime.now();
     private LocalDateTime updatedAt;
+
+    @ManyToOne
+    @JoinColumn(name = "device_id")
+    private Device device; // device que cadastrou a conta (se veio do desktop)
 
     public enum SocialMediaAccountStatus {
         ACTIVE,

@@ -1,5 +1,5 @@
 package br.com.flowlinkerAPI.config.security;
 
-public record CurrentUser(String username, Long customerId) {}
+public record CurrentUser(String username, Long customerId, String deviceFingerprint) {}
 
 
