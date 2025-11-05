@@ -201,6 +201,21 @@ public class SocialMediaAccountService {
         socialMediaAccountRepository.save(acc);
     }
 
+    public SocialMediaAccountResponse blockAccount(Long id, Long customerId) {
+        logger.info("Bloqueando conta social id={} customerId={}", String.valueOf(id), String.valueOf(customerId));
+        var acc = socialMediaAccountRepository.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Conta não encontrada"));
+        if (acc.getCustomer() == null || !acc.getCustomer().getId().equals(customerId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Conta de outro cliente");
+        }
+        if (acc.getStatus() == SocialMediaAccount.SocialMediaAccountStatus.BLOCKED) {
+            return toResponse(acc);
+        }
+        acc.setStatus(SocialMediaAccount.SocialMediaAccountStatus.BLOCKED);
+        acc.setUpdatedAt(java.time.LocalDateTime.now());
+        var saved = socialMediaAccountRepository.save(acc);
+        return toResponse(saved);
+    }
+
     public List<SocialMediaAccountResponse> listAccountsForPlatform(String platform, Long customerId) {
         logger.info("Listando contas platform={} customerId={}", platform, customerId);
         var p = SocialMediaAccount.SocialMediaPlatform.valueOf(platform.toUpperCase());

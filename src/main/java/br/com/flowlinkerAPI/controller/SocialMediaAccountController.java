@@ -52,6 +52,13 @@ public class SocialMediaAccountController {
         return ResponseEntity.ok(updated);
     }
 
+    @PostMapping("/{id}/block")
+    public ResponseEntity<SocialMediaAccountResponse> block(@PathVariable Long id,
+                                                            @AuthenticationPrincipal CurrentUser user) {
+        var updated = service.blockAccount(id, user.customerId());
+        return ResponseEntity.ok(updated);
+    }
+
     @PostMapping
     public ResponseEntity<SocialMediaAccountResponse> create(@RequestBody SocialMediaAccountCreateRequest body,
                                                             @AuthenticationPrincipal CurrentUser user) {

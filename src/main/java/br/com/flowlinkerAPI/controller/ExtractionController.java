@@ -7,7 +7,6 @@ import br.com.flowlinkerAPI.service.GroupExtractionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import java.util.List;
 import org.springframework.data.domain.Page;
 
 @RestController
@@ -23,19 +22,7 @@ public class ExtractionController {
         return ResponseEntity.accepted().build();
     }
 
-    @PostMapping("/{extractionId}/groups")
-    public ResponseEntity<Void> addGroups(@PathVariable Long extractionId,
-                                          @RequestBody List<GroupExtractionRequestDTO.SimpleGroupDTO> groups) {
-        groupExtractionService.addGroupsToExtraction(extractionId, groups);
-        return ResponseEntity.accepted().build();
-    }
-
-    @DeleteMapping("/{extractionId}/groups/{groupId}")
-    public ResponseEntity<Void> removeGroup(@PathVariable Long extractionId,
-                                            @PathVariable Long groupId) {
-        groupExtractionService.removeGroupFromExtraction(extractionId, groupId);
-        return ResponseEntity.noContent().build();
-    }
+    
 
     @DeleteMapping("/{extractionId}")
     public ResponseEntity<Void> deleteExtraction(@PathVariable Long extractionId) {
