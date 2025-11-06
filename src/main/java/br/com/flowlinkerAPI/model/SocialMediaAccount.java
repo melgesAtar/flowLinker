@@ -11,14 +11,13 @@ import jakarta.persistence.Column;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.JoinColumn;
 import java.time.LocalDateTime;
-import br.com.flowlinkerAPI.model.Customer;
-import br.com.flowlinkerAPI.model.Device;
 import lombok.Getter;
 import lombok.Setter;
+
 @Entity
 @Getter
 @Setter
-public class SocialMediaAccount {
+public class SocialMediaAccount{
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

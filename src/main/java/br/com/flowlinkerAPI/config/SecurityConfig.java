@@ -8,6 +8,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import br.com.flowlinkerAPI.config.filter.JwtAuthenticationFilter;
+import br.com.flowlinkerAPI.config.filter.InactiveDeviceFilter;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -18,6 +19,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.beans.factory.annotation.Value;
 import br.com.flowlinkerAPI.config.filter.RequestLoggingFilter;
+import br.com.flowlinkerAPI.config.security.CurrentRequest;
 
 import java.util.List;
 
@@ -32,7 +34,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, AuthenticationManager authenticationManager, JwtAuthenticationFilter jwtAuthenticationFilter, RequestLoggingFilter requestLoggingFilter) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, AuthenticationManager authenticationManager, JwtAuthenticationFilter jwtAuthenticationFilter, RequestLoggingFilter requestLoggingFilter, CurrentRequest currentRequest) throws Exception {
         http
         .csrf(AbstractHttpConfigurer::disable)
         .cors(cors -> {})
@@ -42,7 +44,8 @@ public class SecurityConfig {
             .requestMatchers("/auth/login").permitAll()
             .anyRequest().authenticated())
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-            .addFilterAfter(requestLoggingFilter, JwtAuthenticationFilter.class);  
+            .addFilterAfter(requestLoggingFilter, JwtAuthenticationFilter.class)
+            .addFilterAfter(new InactiveDeviceFilter(currentRequest), JwtAuthenticationFilter.class);  
         return http.build();
     }
 
