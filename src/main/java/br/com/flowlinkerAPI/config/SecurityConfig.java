@@ -43,6 +43,7 @@ public class SecurityConfig {
             .requestMatchers("/stripe/**").permitAll()
             .requestMatchers("/auth/login").permitAll()
             .requestMatchers("/admin/releases/quick/**").permitAll()
+            .requestMatchers("/devices/limits").permitAll()
             .anyRequest().authenticated())
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterAfter(requestLoggingFilter, JwtAuthenticationFilter.class)

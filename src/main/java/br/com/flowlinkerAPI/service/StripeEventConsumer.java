@@ -23,21 +23,25 @@ public class StripeEventConsumer {
     private final CustomerService customerService;
     private final UserService userService;
     private final StripeProcessedEventService stripeProcessedEventService;
+    private final SubscriptionSyncService subscriptionSyncService;
     private final EmailService emailService;
+    private final String stripeSecretKey;
     
-    public StripeEventConsumer(StripeProcessedEventRepository stripeProcessedEventRepository, CustomerService customerService, UserService userService, StripeProcessedEventService stripeProcessedEventService, EmailService emailService) {
+    public StripeEventConsumer(StripeProcessedEventRepository stripeProcessedEventRepository, CustomerService customerService, UserService userService, StripeProcessedEventService stripeProcessedEventService, EmailService emailService, SubscriptionSyncService subscriptionSyncService, @org.springframework.beans.factory.annotation.Value("${stripe.api.key:}") String stripeSecretKey) {
         this.stripeProcessedEventRepository = stripeProcessedEventRepository;
         this.customerService = customerService;
         this.userService = userService;
         this.stripeProcessedEventService = stripeProcessedEventService;
         this.emailService = emailService;
+        this.subscriptionSyncService = subscriptionSyncService;
+        this.stripeSecretKey = stripeSecretKey;
     }
    
     
     @Transactional
     @RabbitListener(queues = RabbitMQConfig.QUEUE_NAME)
     public void processEvent(String payload) {
-        logger.info("Payload received in consumer: {}", payload);
+        logger.info("Stripe event received");
 
         Event event;
 
@@ -63,7 +67,7 @@ public class StripeEventConsumer {
             logger.info("New event: {}, processing", id);
       
 
-        logger.info("Event converted to object: {}", event.getType());
+        logger.info("Stripe event type: {}", event.getType());
 
         EventDataObjectDeserializer dataObjectDeserializer = event.getDataObjectDeserializer();
         StripeObject stripeObject = dataObjectDeserializer.getObject().orElse(null);
@@ -85,6 +89,20 @@ public class StripeEventConsumer {
                 var user = result.getUser();
                 user.setCustomer(customer);
                 userService.saveUser(user);
+
+                // Tenta sincronizar a assinatura imediatamente se presente no session
+                try {
+                    String subId = session.getSubscription();
+                    if (subId != null && !subId.isEmpty() && stripeSecretKey != null && !stripeSecretKey.isEmpty()) {
+                        com.stripe.Stripe.apiKey = stripeSecretKey;
+                        com.stripe.model.Subscription sub = com.stripe.model.Subscription.retrieve(subId);
+                        if (sub != null) {
+                            subscriptionSyncService.upsertFromStripe(sub);
+                        }
+                    }
+                } catch (Exception e) {
+                    logger.warn("Failed to sync subscription on checkout.session.completed: {}", e.getMessage());
+                }
 
                 if(result.isNewUser()) {
                    try {
@@ -128,42 +146,49 @@ public class StripeEventConsumer {
             
             case "customer.subscription.created":{
                 com.stripe.model.Subscription subscription = (com.stripe.model.Subscription) stripeObject;
+                subscriptionSyncService.upsertFromStripe(subscription);
                 customerService.updateCustomerFromSubscription(subscription);
                 logger.info("Customer subscription created: {}", subscription.getCustomer());
                 break;
             }
             case "customer.subscription.updated":{
                 com.stripe.model.Subscription subscription = (com.stripe.model.Subscription) stripeObject;
+                subscriptionSyncService.upsertFromStripe(subscription);
                 customerService.updateCustomerFromSubscription(subscription);
                 logger.info("Customer subscription updated: {}", subscription.getCustomer());
                 break;
             }
             case "customer.subscription.deleted":{
                 com.stripe.model.Subscription subscription = (com.stripe.model.Subscription) stripeObject;
+                subscriptionSyncService.upsertFromStripe(subscription);
                 customerService.updateCustomerFromSubscription(subscription);
                 logger.info("Customer subscription deleted: {}", subscription.getCustomer());
                 break;
             }
             case "customer.subscription.paused":{
                 com.stripe.model.Subscription subscription = (com.stripe.model.Subscription) stripeObject;
+                subscriptionSyncService.upsertFromStripe(subscription);
                 customerService.updateCustomerFromSubscription(subscription);
                 logger.info("Customer subscription paused: {}", subscription.getCustomer());
                 break;
             }
             case "customer.subscription.resumed":{
                 com.stripe.model.Subscription subscription = (com.stripe.model.Subscription) stripeObject;
+                subscriptionSyncService.upsertFromStripe(subscription);
                 customerService.updateCustomerFromSubscription(subscription);
                 logger.info("Customer subscription resumed: {}", subscription.getCustomer());
                 break;
             }
             case "customer.subscription.unpaused":{
                 com.stripe.model.Subscription subscription = (com.stripe.model.Subscription) stripeObject;
+                subscriptionSyncService.upsertFromStripe(subscription);
                 customerService.updateCustomerFromSubscription(subscription);
                 logger.info("Customer subscription unpaused: {}", subscription.getCustomer());
                 break;
             }
             case "customer.subscription.trial_will_end":{
                 com.stripe.model.Subscription subscription = (com.stripe.model.Subscription) stripeObject;
+                subscriptionSyncService.upsertFromStripe(subscription);
                 customerService.updateCustomerFromSubscription(subscription);
                 logger.info("Customer subscription trial will end: {}", subscription.getCustomer());
                 break;

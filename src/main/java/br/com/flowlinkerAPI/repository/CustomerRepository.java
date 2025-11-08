@@ -9,4 +9,6 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
     
     Optional<Customer> findByEmail(String email);
     Optional<Customer> findByStripeCustomerId(String stripeCustomerId);
+
+    java.util.List<Customer> findByPendingOfferTypeNotNullAndPendingOfferEffectiveAtBefore(java.time.Instant now);
 }

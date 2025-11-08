@@ -35,7 +35,7 @@ public class DeviceService {
             .orElseThrow(() -> new CustomerNotFoundException("Customer not found"));
     
         int currentCount = deviceRepository.countByCustomerIdAndStatus(addDeviceRequestDTO.getCustomerId(), DeviceStatus.ACTIVE);
-        int max = devicePolicyService.getMaxDevices(customer.getOfferType());
+        int max = devicePolicyService.getAllowedDevices(addDeviceRequestDTO.getCustomerId(), customer.getOfferType());
     
         if (currentCount >= max) {
            throw new LimitDevicesException("Limit of devices by employee reached " + customer.getOfferType() + " (máx: " + max + ")");

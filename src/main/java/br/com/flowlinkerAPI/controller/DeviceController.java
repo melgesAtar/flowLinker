@@ -8,6 +8,8 @@ import br.com.flowlinkerAPI.model.Device;
 import br.com.flowlinkerAPI.model.DeviceStatus;
 import br.com.flowlinkerAPI.repository.DeviceRepository;
 import br.com.flowlinkerAPI.repository.AppReleaseRepository;
+import br.com.flowlinkerAPI.repository.CustomerRepository;
+import br.com.flowlinkerAPI.service.DevicePolicyService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -24,11 +26,15 @@ public class DeviceController {
     private final DeviceRepository deviceRepository;
     private final AppReleaseRepository appReleaseRepository;
     private final CurrentRequest currentRequest;
+    private final CustomerRepository customerRepository;
+    private final DevicePolicyService devicePolicyService;
 
-    public DeviceController(DeviceRepository deviceRepository, AppReleaseRepository appReleaseRepository, CurrentRequest currentRequest) {
+    public DeviceController(DeviceRepository deviceRepository, AppReleaseRepository appReleaseRepository, CurrentRequest currentRequest, CustomerRepository customerRepository, DevicePolicyService devicePolicyService) {
         this.deviceRepository = deviceRepository;
         this.appReleaseRepository = appReleaseRepository;
         this.currentRequest = currentRequest;
+        this.customerRepository = customerRepository;
+        this.devicePolicyService = devicePolicyService;
     }
 
     @org.springframework.web.bind.annotation.GetMapping("/heartbeat")
@@ -76,6 +82,22 @@ public class DeviceController {
         }
 
         return org.springframework.http.ResponseEntity.ok(resp);
+    }
+
+    @org.springframework.web.bind.annotation.GetMapping("/limits")
+    public org.springframework.http.ResponseEntity<?> getLimits(@org.springframework.web.bind.annotation.RequestParam Long customerId) {
+        var customer = customerRepository.findById(customerId).orElse(null);
+        if (customer == null) {
+            return org.springframework.http.ResponseEntity.status(404).body(java.util.Map.of("code","CUSTOMER_NOT_FOUND"));
+        }
+        int active = deviceRepository.countByCustomerIdAndStatus(customerId, DeviceStatus.ACTIVE);
+        int allowed = devicePolicyService.getAllowedDevices(customerId, customer.getOfferType());
+        return org.springframework.http.ResponseEntity.ok(java.util.Map.of(
+                "customerId", customerId,
+                "activeDevices", active,
+                "allowedDevices", allowed,
+                "offerTypeFallback", customer.getOfferType() != null ? customer.getOfferType().name() : null
+        ));
     }
 
     private AppRelease.Arch mapArch(String arch) {

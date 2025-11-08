@@ -144,7 +144,7 @@ public class UserService {
                     .orElseThrow(() -> new CustomerNotFoundException("Customer not found for user " + username));
     
                 int currentCount = deviceRepository.countByCustomerIdAndStatus(customerId, DeviceStatus.ACTIVE);
-                int max = devicePolicyService.getMaxDevices(customer.getOfferType());
+                int max = devicePolicyService.getAllowedDevices(customerId, customer.getOfferType());
                 if (currentCount >= max) throw new LimitDevicesException("Sem máquinas disponíveis. Revogue o acesso de uma máquina no painel administrativo para liberar uma vaga.");
     
                 Device newDevice = new Device();
@@ -169,7 +169,7 @@ public class UserService {
             } else {
                 if (device.getStatus() == DeviceStatus.INACTIVE){
                     int active = deviceRepository.countByCustomerIdAndStatus(customerId, DeviceStatus.ACTIVE);
-                    int max = devicePolicyService.getMaxDevices(user.getCustomer().getOfferType());
+                    int max = devicePolicyService.getAllowedDevices(customerId, user.getCustomer().getOfferType());
                     if(active >= max){
                         throw new LimitDevicesException("Sem máquinas disponíveis. Revogue o acesso de uma máquina no painel administrativo para liberar uma vaga.");
                     }

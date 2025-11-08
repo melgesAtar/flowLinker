@@ -7,6 +7,12 @@ import org.springframework.stereotype.Service;
 @Service
 public class DevicePolicyService {
 
+    private final EntitlementService entitlementService;
+
+    public DevicePolicyService(EntitlementService entitlementService) {
+        this.entitlementService = entitlementService;
+    }
+
     @Value("${devices.limits.basic:2}")
     private int limitBasic;
 
@@ -28,6 +34,12 @@ public class DevicePolicyService {
             default:
                 return 0;
         }
+    }
+
+    public int getAllowedDevices(Long customerId, Customer.OfferType fallbackOfferType) {
+        int entitlements = entitlementService.getAllowedDevices(customerId);
+        if (entitlements > 0) return entitlements;
+        return getMaxDevices(fallbackOfferType);
     }
 }
 
