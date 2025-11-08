@@ -52,6 +52,8 @@ public class UserService {
     private String jwtSecret;
 
     private final Logger logger = LoggerFactory.getLogger(UserService.class);
+    @Autowired
+    private DevicePolicyService devicePolicyService;
 
     public UserService(UserRepository userRepository) {
         this.userRepository = userRepository;
@@ -142,7 +144,7 @@ public class UserService {
                     .orElseThrow(() -> new CustomerNotFoundException("Customer not found for user " + username));
     
                 int currentCount = deviceRepository.countByCustomerIdAndStatus(customerId, DeviceStatus.ACTIVE);
-                int max = getMaxDevices(customer.getOfferType());
+                int max = devicePolicyService.getMaxDevices(customer.getOfferType());
                 if (currentCount >= max) throw new LimitDevicesException("Sem máquinas disponíveis. Revogue o acesso de uma máquina no painel administrativo para liberar uma vaga.");
     
                 Device newDevice = new Device();
@@ -167,7 +169,7 @@ public class UserService {
             } else {
                 if (device.getStatus() == DeviceStatus.INACTIVE){
                     int active = deviceRepository.countByCustomerIdAndStatus(customerId, DeviceStatus.ACTIVE);
-                    int max = getMaxDevices(user.getCustomer().getOfferType());
+                    int max = devicePolicyService.getMaxDevices(user.getCustomer().getOfferType());
                     if(active >= max){
                         throw new LimitDevicesException("Sem máquinas disponíveis. Revogue o acesso de uma máquina no painel administrativo para liberar uma vaga.");
                     }
@@ -254,11 +256,5 @@ public class UserService {
         return request.getRemoteAddr();
     }
 
-    private int getMaxDevices(Customer.OfferType offerType) {
-        Map<Customer.OfferType, Integer> maxDevices = new HashMap<>();
-        maxDevices.put(Customer.OfferType.BASIC, 2);
-        maxDevices.put(Customer.OfferType.STANDARD, 5);
-        maxDevices.put(Customer.OfferType.PRO, 10);
-        return maxDevices.getOrDefault(offerType, 0);
-    }
+    
 }

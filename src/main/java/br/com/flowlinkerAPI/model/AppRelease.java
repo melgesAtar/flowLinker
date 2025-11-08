@@ -46,6 +46,9 @@ public class AppRelease {
     @Column(length = 128)
     private String sha256;
 
+    @Column(name = "s3_key", length = 512)
+    private String s3Key; // caminho/objeto no S3, ex.: flowlinker/Flowlinker-0.0.2-x64.msi
+
     private Long fileSize;
 
     @Column(name = "force_update")

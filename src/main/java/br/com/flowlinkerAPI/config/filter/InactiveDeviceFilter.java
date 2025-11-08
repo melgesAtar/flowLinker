@@ -25,7 +25,7 @@ public class InactiveDeviceFilter extends OncePerRequestFilter {
         if (device != null && device.getStatus() == DeviceStatus.INACTIVE) {
             response.setStatus(HttpStatus.FORBIDDEN.value());
             response.setContentType("application/json");
-            response.getWriter().write("{\"error\":\"DEVICE_INACTIVE\",\"message\":\"Este dispositivo está inativo. Reative para continuar.\"}");
+            response.getWriter().write("{\"code\":\"DEVICE_INACTIVE\",\"message\":\"Este dispositivo está inativo. Reative para continuar.\"}");
             return;
         }
         filterChain.doFilter(request, response);

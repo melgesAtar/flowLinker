@@ -9,46 +9,30 @@ import com.stripe.model.checkout.Session;
 import com.stripe.model.Invoice;
 import java.time.Instant;
 import com.stripe.model.Subscription;
-import java.util.Map;
-import java.util.HashMap;
+ 
 import org.springframework.transaction.annotation.Transactional;
 import br.com.flowlinkerAPI.exceptions.CustomerNotFoundException;
-import java.util.Optional;
+ 
 @Service
 public class CustomerService {
 
     private final CustomerRepository customerRepository;
     private final Logger logger = LoggerFactory.getLogger(CustomerService.class);
     private final DeviceService deviceService; 
-    private static final Map<Customer.OfferType, Integer> MAX_DEVICES = new HashMap<>();
-    static {
-        MAX_DEVICES.put(Customer.OfferType.BASIC, 2);
-        MAX_DEVICES.put(Customer.OfferType.STANDARD, 5);
-        MAX_DEVICES.put(Customer.OfferType.PRO, 10);
-    }
+    private final DevicePolicyService devicePolicyService;
 
     
-    public CustomerService(CustomerRepository customerRepository, DeviceService deviceService) {
+    public CustomerService(CustomerRepository customerRepository, DeviceService deviceService, DevicePolicyService devicePolicyService) {
         this.customerRepository = customerRepository;
         this.deviceService = deviceService;
+        this.devicePolicyService = devicePolicyService;
     }
 
     @Transactional
-    private void adjustDevicesOnPlanChange(Customer customer, Customer.OfferType oldOfferType, Customer.OfferType newOfferType) {
-       
-        if(oldOfferType == newOfferType) {
-            return;
-        }
-
-        int oldLimit = MAX_DEVICES.getOrDefault(oldOfferType, 0);
-        int newLimit = MAX_DEVICES.getOrDefault(newOfferType, 0);
-       
-        if(newLimit < oldLimit) {
-            deviceService.deactivateByCustomerId(customer.getId());
-            logger.info("Downgrade detected: all devices inactivated for customer {}", customer.getEmail());
-        }else{
-            logger.info("Upgrade detected: devices kept, new limit {} for customer {}", newLimit, customer.getEmail());
-        }
+    private void schedulePlanChange(Customer customer, Customer.OfferType newOfferType, Instant effectiveAt) {
+        customer.setPendingOfferType(newOfferType);
+        customer.setPendingOfferEffectiveAt(effectiveAt);
+        logger.info("Scheduled plan change for customer {} -> {} at {}", customer.getEmail(), newOfferType, String.valueOf(effectiveAt));
     }
 
     public Customer upsertFromStripeCheckout(Session session) {
@@ -213,12 +197,25 @@ public class CustomerService {
             if (item.getPrice() != null) {
                 customer.setStripePriceId(item.getPrice().getId() != null ? item.getPrice().getId() : customer.getStripePriceId());
                 customer.setStripeProductId(item.getPrice().getProduct() != null ? item.getPrice().getProduct() : customer.getStripeProductId());
-                
+
                 Customer.OfferType oldOfferType = customer.getOfferType();
                 Customer.OfferType newOfferType = mapPriceIdToOfferType(customer.getStripeProductId());
-                adjustDevicesOnPlanChange(customer, oldOfferType, newOfferType);
-                customer.setOfferType(newOfferType);
-
+                int oldLimit = devicePolicyService.getMaxDevices(oldOfferType);
+                int newLimit = devicePolicyService.getMaxDevices(newOfferType);
+                if (newLimit > oldLimit) {
+                    // Upgrade: aplica imediatamente
+                    customer.setOfferType(newOfferType);
+                    customer.setPendingOfferType(null);
+                    customer.setPendingOfferEffectiveAt(null);
+                    logger.info("Upgrade applied immediately for {}: {} -> {}", customer.getEmail(), oldOfferType, newOfferType);
+                } else if (newLimit < oldLimit) {
+                    // Downgrade: agenda para o fim do período atual
+                    Instant effectiveAt = customer.getSubscriptionEndDate();
+                    schedulePlanChange(customer, newOfferType, effectiveAt);
+                    logger.info("Downgrade scheduled for end of period {}: {} -> {}", String.valueOf(effectiveAt), oldOfferType, newOfferType);
+                } else {
+                    logger.info("Plan unchanged (same device limit) for {}", customer.getEmail());
+                }
             } else {
                 logger.warn("Item without price, keeping existing price/product");
             }
@@ -250,8 +247,8 @@ public class CustomerService {
                 break;
             case "canceled":
                 customer.setSubscriptionStatus(Customer.SubscriptionStatus.CANCELED);
-                logger.info("Subscription canceled: updating to CANCELED for {}", customer.getEmail());
-                deviceService.deactivateByCustomerId(customer.getId());
+                logger.info("Subscription canceled (access until {}): {}", customer.getSubscriptionEndDate(), customer.getEmail());
+                // Mantém acesso até subscriptionEndDate; corte deverá ocorrer após essa data
                 break;
             case "unpaid":
                 customer.setSubscriptionStatus(Customer.SubscriptionStatus.UNPAID);

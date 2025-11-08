@@ -10,9 +10,6 @@ import br.com.flowlinkerAPI.repository.CustomerRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import br.com.flowlinkerAPI.model.Customer;
-import br.com.flowlinkerAPI.model.Customer.OfferType;
-import java.util.Map;
-import java.util.HashMap;
 import br.com.flowlinkerAPI.dto.AddDeviceRequestDTO;
 import br.com.flowlinkerAPI.dto.AddDeviceResponseDTO;
 import br.com.flowlinkerAPI.exceptions.CustomerNotFoundException;
@@ -23,17 +20,12 @@ public class DeviceService {
     private final DeviceRepository deviceRepository;
     private final CustomerRepository customerRepository;
     private final Logger logger = LoggerFactory.getLogger(DeviceService.class);
+    private final DevicePolicyService devicePolicyService;
    
-    public DeviceService(DeviceRepository deviceRepository, CustomerRepository customerRepository) {
+    public DeviceService(DeviceRepository deviceRepository, CustomerRepository customerRepository, DevicePolicyService devicePolicyService) {
         this.deviceRepository = deviceRepository;
         this.customerRepository = customerRepository;
-    }
-
-    private static final Map<Customer.OfferType, Integer> MAX_DEVICES = new HashMap<>();
-    static {
-        MAX_DEVICES.put(OfferType.BASIC, 2);
-        MAX_DEVICES.put(OfferType.STANDARD, 5);
-        MAX_DEVICES.put(OfferType.PRO, 10);
+        this.devicePolicyService = devicePolicyService;
     }
 
     @Transactional
@@ -43,7 +35,7 @@ public class DeviceService {
             .orElseThrow(() -> new CustomerNotFoundException("Customer not found"));
     
         int currentCount = deviceRepository.countByCustomerIdAndStatus(addDeviceRequestDTO.getCustomerId(), DeviceStatus.ACTIVE);
-        int max = MAX_DEVICES.getOrDefault(customer.getOfferType(), 0);
+        int max = devicePolicyService.getMaxDevices(customer.getOfferType());
     
         if (currentCount >= max) {
            throw new LimitDevicesException("Limit of devices by employee reached " + customer.getOfferType() + " (máx: " + max + ")");

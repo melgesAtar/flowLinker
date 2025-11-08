@@ -57,6 +57,10 @@ public class Customer {
     private PlanInterval planIntervalStripe;
     public enum PlanInterval {MONTHLY, YEARLY}
     
+    // Mudanças de plano programadas (ex.: downgrade no fim do período)
+    @Enumerated(EnumType.STRING)
+    private OfferType pendingOfferType;           // novo plano a ser aplicado no effectiveAt
+    private Instant pendingOfferEffectiveAt;      // quando aplicar pendingOfferType
 
     @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Device> devices;
