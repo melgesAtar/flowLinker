@@ -3,6 +3,7 @@ package br.com.flowlinkerAPI.service;
 import br.com.flowlinkerAPI.model.User;
 import br.com.flowlinkerAPI.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import java.security.SecureRandom;
@@ -40,6 +41,7 @@ public class UserService {
     @Autowired
     private PasswordEncoder passwordEncoder;
     @Autowired
+    @Qualifier("stringRedisTemplate")
     private RedisTemplate<String, String> redisTemplate;
     @Autowired
     private DeviceRepository deviceRepository;

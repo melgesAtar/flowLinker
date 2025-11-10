@@ -117,6 +117,7 @@ public class JwtAuthenticationFilter extends BasicAuthenticationFilter {
 protected boolean shouldNotFilter(HttpServletRequest request) {
     String path = request.getServletPath();
     return path.startsWith("/auth/login")
+        || path.startsWith("/auth/password/")
         || path.startsWith("/stripe/")
         || "OPTIONS".equalsIgnoreCase(request.getMethod());
 }

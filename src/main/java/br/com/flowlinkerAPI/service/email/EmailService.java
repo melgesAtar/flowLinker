@@ -32,6 +32,15 @@ public class EmailService {
        
     }
 
+    public void sendPasswordResetEmail(String toEmail, String resetLink) {
+        String subject = "Redefinição de senha - FlowLinker";
+        String text = "Para redefinir sua senha, acesse: " + resetLink + " (válido por tempo limitado).";
+        String html = "<p>Você solicitou a redefinição de senha.</p>"
+            + "<p><a href=\"" + resetLink + "\">Clique aqui para redefinir</a></p>"
+            + "<p>Se você não solicitou, ignore este e-mail.</p>";
+        smtp2GoClient.sendEmail(from, fromName, toEmail, subject, html, text);
+    }
+
     private String loadTemplate(String templatePath) {
         try {
             var res = new ClassPathResource(templatePath);

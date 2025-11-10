@@ -25,7 +25,7 @@ public class AppReleaseAdminController {
 
 
 
-
+    
     @PostMapping(value = "/quick/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> quickUpload(@RequestHeader(value = "X-Release-Token", required = false) String token,
                                          @RequestParam("file") MultipartFile file,

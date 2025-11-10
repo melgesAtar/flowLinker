@@ -30,7 +30,7 @@ public class GroupCatalog {
     @Column(nullable = false, length = 512)
     private String name;
 
-    @Column(nullable = false, length = 1024)
+	@Column(nullable = false, length = 700)
     private String url;
 
     @Column(name = "member_count")

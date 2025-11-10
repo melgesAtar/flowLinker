@@ -16,6 +16,14 @@ public class RedisConfig {
         return template;
     }
 
+    // Template com generics String para uso direto com tokens e strings
+    @Bean
+    public RedisTemplate<String, String> redisStringTemplate(RedisConnectionFactory connectionFactory) {
+        RedisTemplate<String, String> template = new RedisTemplate<>();
+        template.setConnectionFactory(connectionFactory);
+        return template;
+    }
+
     @Bean
     public ApplicationRunner redisConnectionValidator(RedisTemplate<String, Object> redisTemplate) {
         return (args) -> {

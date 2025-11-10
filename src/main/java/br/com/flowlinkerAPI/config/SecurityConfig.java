@@ -12,6 +12,7 @@ import br.com.flowlinkerAPI.config.filter.InactiveDeviceFilter;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.http.HttpMethod;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -28,7 +29,7 @@ public class SecurityConfig {
 
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter(AuthenticationManager authenticationManager,
-                                                        RedisTemplate<String, String> redisTemplate,
+                                                        @Qualifier("stringRedisTemplate") RedisTemplate<String, String> redisTemplate,
                                                         @Value("${jwt.secret}") String jwtSecret) {
         return new JwtAuthenticationFilter(authenticationManager, redisTemplate, jwtSecret);
     }
@@ -42,6 +43,8 @@ public class SecurityConfig {
             .requestMatchers(HttpMethod.OPTIONS).permitAll()
             .requestMatchers("/stripe/**").permitAll()
             .requestMatchers("/auth/login").permitAll()
+            .requestMatchers("/auth/password/**").permitAll()
+            .requestMatchers("/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll()
             .requestMatchers("/admin/releases/quick/**").permitAll()
             .requestMatchers("/devices/limits").permitAll()
             .anyRequest().authenticated())
