@@ -227,10 +227,22 @@ public class UserService {
             .compact();
                 
             if("web".equals(type)) {
+                // Ajusta flags do cookie conforme o contexto da requisição
+                boolean isHttps = false;
+                try {
+                    String xfProto = request != null ? request.getHeader("X-Forwarded-Proto") : null;
+                    isHttps = (xfProto != null && xfProto.equalsIgnoreCase("https")) || (request != null && request.isSecure());
+                } catch (Exception ignored) {}
+
+                // Para cenários cross-site (ex.: frontend em domínio ngrok e API em outro),
+                // precisamos de SameSite=None e Secure=true para o cookie ser enviado.
+                String sameSite = isHttps ? "None" : "Lax";
+                boolean secure = isHttps;
+
                 ResponseCookie cookie = ResponseCookie.from("jwtToken", token)
                     .httpOnly(true)
-                    .secure(false)          // DEV: false; PROD: true
-                    .sameSite("Lax")        
+                    .secure(secure)
+                    .sameSite(sameSite)
                     .path("/")
                     .maxAge(Duration.ofDays(1))
                     .build();

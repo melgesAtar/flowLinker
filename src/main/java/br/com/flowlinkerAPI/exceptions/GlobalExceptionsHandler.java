@@ -1,6 +1,7 @@
 package br.com.flowlinkerAPI.exceptions;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import br.com.flowlinkerAPI.exceptions.dto.CustomerNotFoundDTO;
@@ -17,20 +18,26 @@ public class GlobalExceptionsHandler {
     @ExceptionHandler(CustomerNotFoundException.class)
     public ResponseEntity<CustomerNotFoundDTO> handleCustomerNotFound(CustomerNotFoundException e) {
         logger.warn("Customer not found: {}", e.getMessage());
-        return ResponseEntity.status(404).body(new CustomerNotFoundDTO(e.getMessage()));
+        return ResponseEntity.status(404)
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(new CustomerNotFoundDTO(e.getMessage()));
     }
 
 
     @ExceptionHandler(WelcomeEmailNotSendException.class)
     public ResponseEntity<WelcomeEmailNotSendExceptionDTO> handleWelcomeEmailNotSendException(WelcomeEmailNotSendException e) {
         logger.error("Welcome email not sent: {}", e.getMessage());
-        return ResponseEntity.status(500).body(new WelcomeEmailNotSendExceptionDTO(e.getMessage()));
+        return ResponseEntity.status(500)
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(new WelcomeEmailNotSendExceptionDTO(e.getMessage()));
     }
 
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<Map<String, String>> handleBadCredentials(BadCredentialsException e) {
         logger.warn("Bad credentials: {}", e.getMessage());
-        return ResponseEntity.status(401).body(Map.of(
+        return ResponseEntity.status(401)
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(Map.of(
             "code", "AUTH_INVALID_CREDENTIALS",
             "message", "Invalid credentials"
         ));
@@ -39,7 +46,9 @@ public class GlobalExceptionsHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, String>> handleIllegalArgument(IllegalArgumentException e) {
         logger.warn("Bad request: {}", e.getMessage());
-        return ResponseEntity.status(400).body(Map.of(
+        return ResponseEntity.status(400)
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(Map.of(
             "code", "BAD_REQUEST",
             "message", e.getMessage()
         ));
@@ -48,7 +57,9 @@ public class GlobalExceptionsHandler {
     @ExceptionHandler(LimitDevicesException.class)
     public ResponseEntity<Map<String, String>> handleLimitDevices(LimitDevicesException e) {
         logger.warn("Device limit reached: {}", e.getMessage());
-        return ResponseEntity.status(403).body(Map.of(
+        return ResponseEntity.status(403)
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(Map.of(
             "code", "DEVICE_LIMIT_REACHED",
             "message", e.getMessage()
         ));
@@ -57,7 +68,9 @@ public class GlobalExceptionsHandler {
     @ExceptionHandler(DeviceInactiveException.class)
     public ResponseEntity<Map<String, String>> handleDeviceInactive(DeviceInactiveException e) {
         logger.warn("Device inactive: {}", e.getMessage());
-        return ResponseEntity.status(403).body(Map.of(
+        return ResponseEntity.status(403)
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(Map.of(
             "code", "DEVICE_INACTIVE",
             "message", e.getMessage()
         ));
@@ -66,7 +79,9 @@ public class GlobalExceptionsHandler {
     @ExceptionHandler(DeviceChangedException.class)
     public ResponseEntity<Map<String, String>> handleDeviceChanged(DeviceChangedException e) {
         logger.warn("Device changed: {}", e.getMessage());
-        return ResponseEntity.status(403).body(Map.of(
+        return ResponseEntity.status(403)
+            .contentType(MediaType.APPLICATION_JSON)
+            .body(Map.of(
             "code", "DEVICE_CHANGED",
             "message", e.getMessage()
         ));

@@ -57,29 +57,52 @@ public class MetricsProxyService {
         if (cached != null && !cached.isExpired()) {
             return cached.value;
         }
+        int h = (hours != null ? hours : 24);
         try {
-            URI uri = URI.create(baseUrl + "/metrics/overview?customerId=" + customerId + "&hours=" + (hours != null ? hours : 24));
-            ResponseEntity<Map> resp = restTemplate.getForEntity(uri, Map.class);
-            Map<String, Object> body = resp.getBody();
+            // 1) People reached
+            URI peopleUri = URI.create(baseUrl + "/metrics/people-reached?customerId=" + customerId + "&hours=" + h);
+            ResponseEntity<Map> peopleResp = restTemplate.getForEntity(peopleUri, Map.class);
+            long peopleReached = 0L;
+            if (peopleResp.getBody() != null) {
+                peopleReached = toLong(peopleResp.getBody().get("peopleReached"));
+            }
+    
+            // 2) Actions summary
+            URI actionsUri = URI.create(baseUrl + "/metrics/actions/summary?customerId=" + customerId + "&hours=" + h);
+            ResponseEntity<Map> actionsResp = restTemplate.getForEntity(actionsUri, Map.class);
+            long total = 0L;
+            Long shares = 0L, extractions = 0L, instagramLikes = 0L, instagramComments = 0L;
+            if (actionsResp.getBody() != null) {
+                Map body = actionsResp.getBody();
+                shares = toLong(body.get("shares"));
+                extractions = toLong(body.get("extractions"));
+                instagramLikes = toLong(body.get("instagramLikes"));
+                instagramComments = toLong(body.get("instagramComments"));
+                total = toLong(body.get("total"));
+            }
+    
+            // Saída compatível com seu card (mantém campos que o front espera)
             Map<String, Object> safe = new HashMap<>();
             safe.put("customerId", customerId);
-            safe.put("hours", hours != null ? hours : 24);
-            if (body != null) {
-                Object actions = body.get("totalActions");
-                Object reached = body.get("peopleReached");
-                safe.put("totalActions", toLong(actions));
-                safe.put("peopleReached", toLong(reached));
-            } else {
-                safe.put("totalActions", 0L);
-                safe.put("peopleReached", 0L);
-            }
+            safe.put("hours", h);
+            safe.put("totalActions", total);
+            safe.put("peopleReached", peopleReached);
+            // opcional: breakdown (útil para evoluir UI sem quebrar)
+            Map<String, Object> breakdown = new HashMap<>();
+            breakdown.put("shares", shares);
+            breakdown.put("extractions", extractions);
+            breakdown.put("instagramLikes", instagramLikes);
+            breakdown.put("instagramComments", instagramComments);
+            breakdown.put("total", total);
+            safe.put("breakdown", breakdown);
+    
             overviewCache.put(key, new CacheEntry<>(safe, OVERVIEW_TTL_MS));
             return safe;
         } catch (Exception e) {
-            logger.warn("Falha ao consultar overview no 9090: {}", e.getMessage());
+            logger.warn("Falha ao consultar endpoints de metrics (people-reached/actions): {}", e.getMessage());
             Map<String, Object> fallback = Map.of(
                     "customerId", customerId,
-                    "hours", hours != null ? hours : 24,
+                    "hours", h,
                     "totalActions", 0L,
                     "peopleReached", 0L
             );
@@ -96,7 +119,8 @@ public class MetricsProxyService {
         }
         try {
             int lim = limit != null ? Math.max(1, Math.min(limit, 100)) : 20;
-            URI uri = URI.create(baseUrl + "/metrics/recent?customerId=" + customerId + "&limit=" + lim);
+            // Força timezone UTC na API de métricas
+            URI uri = URI.create(baseUrl + "/metrics/recent?customerId=" + customerId + "&limit=" + lim + "&tz=UTC");
             ResponseEntity<Map> resp = restTemplate.getForEntity(uri, Map.class);
             Map<String, Object> body = resp.getBody();
             List<Map<String, Object>> items;

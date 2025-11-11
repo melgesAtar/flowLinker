@@ -66,9 +66,17 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource(){
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:4020", "http://127.0.0.1:4020", "https://localhost:4200", "http://localhost:4200"));
+        // Permite origens dinâmicas (ex.: ngrok) e ambientes locais
+        configuration.setAllowedOriginPatterns(List.of(
+            "https://*.ngrok-free.app",
+            "https://*.ngrok.app",
+            "http://localhost:*",
+            "https://localhost:*",
+            "http://127.0.0.1:*"
+        ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Requested-With", "X-Fingerprint", "X-Auth-Type"));
+        // Libera todos os headers para não bloquear preflight (Access-Control-Request-Headers)
+        configuration.setAllowedHeaders(List.of("*"));
         configuration.setExposedHeaders(List.of("Authorization"));
         configuration.setAllowCredentials(true);
 

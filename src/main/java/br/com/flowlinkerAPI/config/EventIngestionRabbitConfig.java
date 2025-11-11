@@ -43,17 +43,17 @@ public class EventIngestionRabbitConfig {
 
 	@Bean
 	public Binding bindActivity(Queue activityQueue, TopicExchange eventsExchange) {
-		return BindingBuilder.bind(activityQueue).to(eventsExchange).with("*.activity.*");
+		return BindingBuilder.bind(activityQueue).to(eventsExchange).with("#.activity.#");
 	}
 
 	@Bean
 	public Binding bindCampaign(Queue campaignQueue, TopicExchange eventsExchange) {
-		return BindingBuilder.bind(campaignQueue).to(eventsExchange).with("*.campaign.*");
+		return BindingBuilder.bind(campaignQueue).to(eventsExchange).with("#.campaign.#");
 	}
 
 	@Bean
 	public Binding bindSecurity(Queue securityQueue, TopicExchange eventsExchange) {
-		return BindingBuilder.bind(securityQueue).to(eventsExchange).with("*.security.*");
+		return BindingBuilder.bind(securityQueue).to(eventsExchange).with("#.security.#");
 	}
 
 	@Bean

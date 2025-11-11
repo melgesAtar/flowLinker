@@ -9,6 +9,8 @@ import br.com.flowlinkerAPI.model.Device;
 import br.com.flowlinkerAPI.service.EventPublisherService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -25,6 +27,7 @@ public class EventIngestionController {
 
 	private final EventPublisherService publisher;
 	private final CurrentRequest currentRequest;
+	private static final Logger logger = LoggerFactory.getLogger(EventIngestionController.class);
 
 	public EventIngestionController(EventPublisherService publisher, CurrentRequest currentRequest) {
 		this.publisher = publisher;
@@ -47,6 +50,13 @@ public class EventIngestionController {
 		Instant receivedAt = Instant.now();
 
 		for (IngestEventDTO e : events) {
+			if (e == null) {
+				continue;
+			}
+			// Loga apenas o tipo do evento recebido
+			if (e.eventType() != null) {
+				logger.info("ingest eventType={}", e.eventType());
+			}
 			String eventId = (e.eventId() != null && !e.eventId().isBlank()) ? e.eventId() : UUID.randomUUID().toString();
 
 			EnrichedEventDTO enriched = new EnrichedEventDTO(
