@@ -22,6 +22,14 @@ public interface SocialMediaAccountRepository extends JpaRepository<SocialMediaA
         SocialMediaAccount.SocialMediaAccountStatus status
     );
 
+    long countByCustomerIdAndStatus(Long customerId, SocialMediaAccount.SocialMediaAccountStatus status);
+
+    long countByCustomerIdAndPlatformAndStatus(
+        Long customerId,
+        SocialMediaAccount.SocialMediaPlatform platform,
+        SocialMediaAccount.SocialMediaAccountStatus status
+    );
+
     boolean existsByCustomerIdAndPlatformAndUsernameIgnoreCase(
     Long customerId,
     SocialMediaAccount.SocialMediaPlatform platform,

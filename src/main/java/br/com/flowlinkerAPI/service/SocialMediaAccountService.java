@@ -286,6 +286,24 @@ public class SocialMediaAccountService {
     
     //aux
     
+    public long countActive(Long customerId, String platform) {
+        if (customerId == null) {
+            return 0L;
+        }
+        if (platform == null || platform.isBlank()) {
+            return socialMediaAccountRepository.countByCustomerIdAndStatus(
+                customerId,
+                SocialMediaAccount.SocialMediaAccountStatus.ACTIVE
+            );
+        }
+        SocialMediaAccount.SocialMediaPlatform p = parsePlatform(platform);
+        return socialMediaAccountRepository.countByCustomerIdAndPlatformAndStatus(
+            customerId,
+            p,
+            SocialMediaAccount.SocialMediaAccountStatus.ACTIVE
+        );
+    }
+    
     private String mapStatusToPt(SocialMediaAccount.SocialMediaAccountStatus s) {
         return switch (s) {
             case ACTIVE    -> "ATIVO";

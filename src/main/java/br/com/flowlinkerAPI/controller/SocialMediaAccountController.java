@@ -29,6 +29,19 @@ public class SocialMediaAccountController {
         return ResponseEntity.ok(service.listAccountsForPlatform(platform, user.customerId()));
     }
 
+    @GetMapping("/active/count")
+    public ResponseEntity<java.util.Map<String, Object>> countActive(@RequestParam(required = false) String platform,
+                                                                     @AuthenticationPrincipal CurrentUser user) {
+        long count = service.countActive(user.customerId(), platform);
+        java.util.Map<String, Object> resp = new java.util.HashMap<>();
+        resp.put("customerId", user.customerId());
+        resp.put("activeCount", count);
+        if (platform != null) {
+            resp.put("platform", platform);
+        }
+        return ResponseEntity.ok(resp);
+    }
+
     @GetMapping("/{id}/cookies")
     public ResponseEntity<List<SocialCookieDTO>> getCookies(@PathVariable Long id,
                                                             @AuthenticationPrincipal CurrentUser user) {

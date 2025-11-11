@@ -169,7 +169,8 @@ public class UserService {
                 logger.info("Novo device cadastrado customerId={} deviceId={} fingerprint={} os={} {} app={} ip={}",
                     String.valueOf(customerId), deviceId, fingerprint, osName, osVersion, appVersion, newDevice.getLastIp());
             } else {
-                if (device.getStatus() == DeviceStatus.INACTIVE){
+                boolean wasInactive = device.getStatus() == DeviceStatus.INACTIVE;
+                if (wasInactive){
                     int active = deviceRepository.countByCustomerIdAndStatus(customerId, DeviceStatus.ACTIVE);
                     int max = devicePolicyService.getAllowedDevices(customerId, user.getCustomer().getOfferType());
                     if(active >= max){
@@ -179,7 +180,8 @@ public class UserService {
                 }
                 if (hwHash != null && !hwHash.isEmpty()) {
                     device.setLastHwHash(hwHash);
-                    if (device.getHwHashBaseline() == null) {
+                    // Se o dispositivo foi reativado após revogação, recomeça a baseline
+                    if (device.getHwHashBaseline() == null || wasInactive) {
                         device.setHwHashBaseline(hwHash);
                     } else {
                         double diff = hardwareFingerPrintService.diffRatio(device.getHwHashBaseline(), hwHash);
