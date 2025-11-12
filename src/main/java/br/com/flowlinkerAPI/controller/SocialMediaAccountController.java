@@ -29,6 +29,19 @@ public class SocialMediaAccountController {
         return ResponseEntity.ok(service.listAccountsForPlatform(platform, user.customerId()));
     }
 
+    @GetMapping("/by-status")
+    public ResponseEntity<List<SocialMediaAccountResponse>> listByStatus(@RequestParam String platform,
+                                                                         @RequestParam String status,
+                                                                         @AuthenticationPrincipal CurrentUser user) {
+        return ResponseEntity.ok(service.listByStatus(platform, status, user.customerId()));
+    }
+
+    @GetMapping("/available")
+    public ResponseEntity<List<SocialMediaAccountResponse>> availableForCampaign(@RequestParam String platform,
+                                                                                 @AuthenticationPrincipal CurrentUser user) {
+        return ResponseEntity.ok(service.listActiveNotInRunningOrPausedCampaign(platform, user.customerId()));
+    }
+
     @GetMapping("/active/count")
     public ResponseEntity<java.util.Map<String, Object>> countActive(@RequestParam(required = false) String platform,
                                                                      @AuthenticationPrincipal CurrentUser user) {

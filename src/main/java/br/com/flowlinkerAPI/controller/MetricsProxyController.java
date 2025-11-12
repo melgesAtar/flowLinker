@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.HashMap;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -28,6 +29,14 @@ public class MetricsProxyController {
                                                         @RequestParam(defaultValue = "24") Integer hours) {
         Long customerId = user.customerId();
         Map<String, Object> body = service.getOverview(customerId, hours);
+        return ResponseEntity.ok(body);
+    }
+
+    @GetMapping("/shares")
+    public ResponseEntity<Map<String, Object>> shares(@AuthenticationPrincipal CurrentUser user,
+                                                      @RequestParam(defaultValue = "24") Integer hours) {
+        Long customerId = user.customerId();
+        Map<String, Object> body = service.getSharesCount(customerId, hours);
         return ResponseEntity.ok(body);
     }
 

@@ -20,18 +20,12 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.beans.factory.annotation.Value;
 import br.com.flowlinkerAPI.config.filter.RequestLoggingFilter;
-import br.com.flowlinkerAPI.config.filter.CorsAuditFilter;
 import br.com.flowlinkerAPI.config.security.CurrentRequest;
 
 import java.util.List;
 
 @Configuration
 public class SecurityConfig {
-
-    @Bean
-    public CorsAuditFilter corsAuditFilter() {
-        return new CorsAuditFilter();
-    }
 
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter(AuthenticationManager authenticationManager,
@@ -41,9 +35,10 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, AuthenticationManager authenticationManager, JwtAuthenticationFilter jwtAuthenticationFilter, RequestLoggingFilter requestLoggingFilter, CurrentRequest currentRequest, CorsAuditFilter corsAuditFilter) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, AuthenticationManager authenticationManager, JwtAuthenticationFilter jwtAuthenticationFilter, RequestLoggingFilter requestLoggingFilter, CurrentRequest currentRequest) throws Exception {
         http
         .csrf(AbstractHttpConfigurer::disable)
+        .cors(cors -> {})
             .authorizeHttpRequests(authz -> authz
             .requestMatchers(HttpMethod.OPTIONS).permitAll()
             .requestMatchers("/stripe/**").permitAll()
@@ -55,7 +50,6 @@ public class SecurityConfig {
             .anyRequest().authenticated())
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterAfter(requestLoggingFilter, JwtAuthenticationFilter.class)
-            .addFilterBefore(corsAuditFilter, JwtAuthenticationFilter.class)
             .addFilterAfter(new InactiveDeviceFilter(currentRequest), JwtAuthenticationFilter.class);  
         return http.build();
     }
@@ -70,23 +64,43 @@ public class SecurityConfig {
     }
 
     @Bean
-    public CorsConfigurationSource corsConfigurationSource(@Value("${cors.allowedOriginPatterns:https://*.ngrok-free.app,https://*.ngrok.app,http://localhost:*,https://localhost:*,http://127.0.0.1:*}") String allowedOriginsCsv){
-        CorsConfiguration configuration = new CorsConfiguration();
-        // Permite origens dinâmicas (ex.: ngrok) e ambientes locais - parametrizável por env/properties
-        List<String> patterns = java.util.Arrays.stream(allowedOriginsCsv.split(","))
+    public CorsConfigurationSource corsConfigurationSource(@Value("${cors.allowedOriginPatterns}") String allowedOriginsCsv){
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+
+        // 1) Config restrita (com credenciais) para endpoints web que usam cookie (ex.: /auth/**)
+        var originsInput = java.util.Arrays.stream(allowedOriginsCsv.split(","))
             .map(String::trim)
             .filter(s -> !s.isBlank())
             .toList();
-        configuration.setAllowedOriginPatterns(patterns);
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        // Libera todos os headers para não bloquear preflight (Access-Control-Request-Headers)
-        configuration.setAllowedHeaders(List.of("*"));
-        configuration.setExposedHeaders(List.of("Authorization"));
-        configuration.setAllowCredentials(true);
+        // Separa exatos (sem wildcard) de padrões (com *)
+        var exactOrigins = new java.util.ArrayList<String>();
+        var patternOrigins = new java.util.ArrayList<String>();
+        for (String o : originsInput) {
+            if (o.contains("*")) patternOrigins.add(o);
+            else exactOrigins.add(o);
+        }
+        CorsConfiguration webWithCookie = new CorsConfiguration();
+        if (!exactOrigins.isEmpty()) {
+            webWithCookie.setAllowedOrigins(exactOrigins);
+        }
+        if (!patternOrigins.isEmpty()) {
+            webWithCookie.setAllowedOriginPatterns(patternOrigins);
+        }
+        webWithCookie.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        webWithCookie.setAllowedHeaders(List.of("*"));
+        webWithCookie.setExposedHeaders(List.of("Authorization"));
+        webWithCookie.setAllowCredentials(true);
+        source.registerCorsConfiguration("/auth/**", webWithCookie);
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
+        // 2) Config aberta (sem credenciais) para todos os demais endpoints (dispositivos ao redor do mundo)
+        CorsConfiguration open = new CorsConfiguration();
+        open.setAllowedOriginPatterns(List.of("*"));           // qualquer origem
+        open.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        open.setAllowedHeaders(List.of("*"));
+        open.setAllowCredentials(false);                       // obrigatório para aceitar '*'
+        open.setExposedHeaders(List.of("Authorization"));
+        source.registerCorsConfiguration("/**", open);
+
         return source;
-
     }
 }

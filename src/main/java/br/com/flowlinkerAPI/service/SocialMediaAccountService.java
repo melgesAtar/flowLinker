@@ -3,6 +3,8 @@ package br.com.flowlinkerAPI.service;
 import java.util.List;
 import br.com.flowlinkerAPI.model.SocialMediaAccount;
 import br.com.flowlinkerAPI.repository.SocialMediaAccountRepository;
+import br.com.flowlinkerAPI.repository.CampaignAccountRepository;
+import br.com.flowlinkerAPI.model.CampaignStatus;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -30,13 +32,15 @@ public class SocialMediaAccountService {
     private final SocialMediaAccountRepository socialMediaAccountRepository;
     private final ObjectMapper mapper = new ObjectMapper();
     private final CustomerService customerService;
+    private final CampaignAccountRepository campaignAccountRepository;
     private static final Logger logger = LoggerFactory.getLogger(SocialMediaAccountService.class);
     private final CurrentRequest currentRequest;
 
-    public SocialMediaAccountService(SocialMediaAccountRepository socialMediaAccountRepository, CustomerService customerService, CurrentRequest currentRequest) {
+    public SocialMediaAccountService(SocialMediaAccountRepository socialMediaAccountRepository, CustomerService customerService, CurrentRequest currentRequest, CampaignAccountRepository campaignAccountRepository) {
         this.customerService = customerService;
         this.socialMediaAccountRepository = socialMediaAccountRepository;
         this.currentRequest = currentRequest;
+        this.campaignAccountRepository = campaignAccountRepository;
     }
 
     public SocialMediaAccountResponse createAccount(SocialMediaAccountCreateRequest request, Long customerId) {
@@ -240,6 +244,43 @@ public class SocialMediaAccountService {
             out.add(dto);
         }
         return out;
+    }
+
+    public List<SocialMediaAccountResponse> listByStatus(String platform, String statusPt, Long customerId) {
+        logger.info("Listando contas por status platform={} status={} customerId={}", platform, statusPt, customerId);
+        var p = SocialMediaAccount.SocialMediaPlatform.valueOf(platform.toUpperCase());
+        var s = parseStatusPt(statusPt);
+        var rows = socialMediaAccountRepository.findAllByCustomerIdAndPlatformAndStatus(customerId, p, s);
+        var out = new ArrayList<SocialMediaAccountResponse>();
+        for (var a : rows) {
+            out.add(toResponse(a));
+        }
+        return out;
+    }
+
+    public List<SocialMediaAccountResponse> listActiveNotInRunningOrPausedCampaign(String platform, Long customerId) {
+        logger.info("Listando contas ATIVAS e livres de campanhas RUNNING/PAUSED platform={} customerId={}", platform, customerId);
+        var p = SocialMediaAccount.SocialMediaPlatform.valueOf(platform.toUpperCase());
+        // 1) pegar contas ativas do cliente/plataforma
+        var activeAccounts = socialMediaAccountRepository.findAllByCustomerIdAndPlatformAndStatus(
+            customerId, p, SocialMediaAccount.SocialMediaAccountStatus.ACTIVE
+        );
+        if (activeAccounts.isEmpty()) return List.of();
+
+        // 2) consultar vínculos com campanhas em RUNNING/PAUSED
+        var accountIds = activeAccounts.stream().map(SocialMediaAccount::getId).toList();
+        var statuses = java.util.List.of(CampaignStatus.RUNNING, CampaignStatus.PAUSED);
+        var used = campaignAccountRepository.findByAccountIdsAndCampaignStatuses(accountIds, statuses);
+        java.util.Set<Long> usedIds = used.stream()
+            .map(ca -> ca.getSocialAccount().getId())
+            .collect(java.util.stream.Collectors.toSet());
+
+        // 3) filtrar as que não estão sendo usadas
+        var free = activeAccounts.stream()
+            .filter(a -> !usedIds.contains(a.getId()))
+            .map(this::toResponse)
+            .toList();
+        return free;
     }
 
 

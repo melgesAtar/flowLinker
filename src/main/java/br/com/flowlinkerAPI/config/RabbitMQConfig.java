@@ -9,6 +9,9 @@ import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.amqp.core.ExchangeBuilder;
+import org.springframework.amqp.core.QueueBuilder;
+import org.springframework.amqp.core.Declarables;
 
 @Configuration
 public class RabbitMQConfig {
@@ -19,12 +22,12 @@ public class RabbitMQConfig {
 
     @Bean
     public Queue queue() {
-        return new Queue(QUEUE_NAME, true);
+        return QueueBuilder.durable(QUEUE_NAME).build();
     }
 
     @Bean
     public TopicExchange exchange() {
-        return new TopicExchange(EXCHANGE_NAME);
+        return ExchangeBuilder.topicExchange(EXCHANGE_NAME).durable(true).build();
     }
 
     @Bean 
@@ -35,5 +38,11 @@ public class RabbitMQConfig {
     @Bean 
     public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory) {
         return new RabbitTemplate(connectionFactory); // usa SimpleMessageConverter (texto puro)
+    }
+
+    // Declara explicitamente a topologia do Stripe no broker ao subir a aplicação
+    @Bean
+    public Declarables stripeTopology(TopicExchange exchange, Queue queue, Binding binding) {
+        return new Declarables(exchange, queue, binding);
     }
 }

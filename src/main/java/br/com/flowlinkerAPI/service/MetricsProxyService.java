@@ -38,10 +38,12 @@ public class MetricsProxyService {
     // caches simples com TTL curto
     private final ConcurrentHashMap<String, CacheEntry<Map<String, Object>>> overviewCache = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, CacheEntry<List<Map<String, Object>>>> recentCache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, CacheEntry<Map<String, Object>>> sharesCache = new ConcurrentHashMap<>();
 
     // TTLs (ms)
     private static final long OVERVIEW_TTL_MS = 10_000L;
     private static final long RECENT_TTL_MS = 5_000L;
+    private static final long SHARES_TTL_MS = 5_000L;
 
     public MetricsProxyService(
             @Value("${metrics.api.baseUrl:http://localhost:9090}") String baseUrl
@@ -49,6 +51,38 @@ public class MetricsProxyService {
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
         // RestTemplate simples (sem bean global) com timeouts razoáveis via system properties (padrões do JDK)
         this.restTemplate = new RestTemplate();
+    }
+
+    public Map<String, Object> getSharesCount(Long customerId, Integer hours) {
+        String key = customerId + ":" + String.valueOf(hours != null ? hours : 24);
+        CacheEntry<Map<String, Object>> cached = sharesCache.get(key);
+        if (cached != null && !cached.isExpired()) {
+            return cached.value;
+        }
+        int h = (hours != null ? hours : 24);
+        try {
+            URI uri = URI.create(baseUrl + "/metrics/shares/count?customerId=" + customerId + "&hours=" + h);
+            ResponseEntity<Map> resp = restTemplate.getForEntity(uri, Map.class);
+            long shares = 0L;
+            if (resp.getBody() != null) {
+                shares = toLong(resp.getBody().get("shares"));
+            }
+            Map<String, Object> safe = new HashMap<>();
+            safe.put("customerId", customerId);
+            safe.put("hours", h);
+            safe.put("shares", shares);
+            sharesCache.put(key, new CacheEntry<>(safe, SHARES_TTL_MS));
+            return safe;
+        } catch (Exception e) {
+            logger.warn("Falha ao consultar shares/count no 9090: {}", e.getMessage());
+            Map<String, Object> fallback = Map.of(
+                "customerId", customerId,
+                "hours", h,
+                "shares", 0L
+            );
+            sharesCache.put(key, new CacheEntry<>(fallback, SHARES_TTL_MS));
+            return fallback;
+        }
     }
 
     public Map<String, Object> getOverview(Long customerId, Integer hours) {
@@ -59,35 +93,56 @@ public class MetricsProxyService {
         }
         int h = (hours != null ? hours : 24);
         try {
-            // 1) People reached
-            URI peopleUri = URI.create(baseUrl + "/metrics/people-reached?customerId=" + customerId + "&hours=" + h);
-            ResponseEntity<Map> peopleResp = restTemplate.getForEntity(peopleUri, Map.class);
             long peopleReached = 0L;
-            if (peopleResp.getBody() != null) {
-                peopleReached = toLong(peopleResp.getBody().get("peopleReached"));
+            long shares = 0L;
+            long extractions = 0L;
+            long instagramLikes = 0L;
+            long instagramComments = 0L;
+
+            // 1) People reached
+            try {
+                URI peopleUri = URI.create(baseUrl + "/metrics/people-reached?customerId=" + customerId + "&hours=" + h);
+                ResponseEntity<Map> peopleResp = restTemplate.getForEntity(peopleUri, Map.class);
+                if (peopleResp.getBody() != null) {
+                    peopleReached = toLong(peopleResp.getBody().get("peopleReached"));
+                }
+            } catch (Exception pe) {
+                logger.warn("metrics.people-reached falhou: {}", pe.getMessage());
             }
-    
-            // 2) Actions summary
-            URI actionsUri = URI.create(baseUrl + "/metrics/actions/summary?customerId=" + customerId + "&hours=" + h);
-            ResponseEntity<Map> actionsResp = restTemplate.getForEntity(actionsUri, Map.class);
-            long total = 0L;
-            Long shares = 0L, extractions = 0L, instagramLikes = 0L, instagramComments = 0L;
-            if (actionsResp.getBody() != null) {
-                Map body = actionsResp.getBody();
-                shares = toLong(body.get("shares"));
-                extractions = toLong(body.get("extractions"));
-                instagramLikes = toLong(body.get("instagramLikes"));
-                instagramComments = toLong(body.get("instagramComments"));
-                total = toLong(body.get("total"));
+
+            // 2) Shares (novo endpoint dedicado)
+            try {
+                URI sharesUri = URI.create(baseUrl + "/metrics/shares/count?customerId=" + customerId + "&hours=" + h);
+                ResponseEntity<Map> sharesResp = restTemplate.getForEntity(sharesUri, Map.class);
+                if (sharesResp.getBody() != null) {
+                    shares = toLong(sharesResp.getBody().get("shares"));
+                }
+            } catch (Exception se) {
+                logger.info("metrics.shares.count indisponível (ok): {}", se.getMessage());
             }
-    
-            // Saída compatível com seu card (mantém campos que o front espera)
+
+            // 3) Opcional: actions/summary para complementar (extractions/likes/comments)
+            try {
+                URI actionsUri = URI.create(baseUrl + "/metrics/actions/summary?customerId=" + customerId + "&hours=" + h);
+                ResponseEntity<Map> actionsResp = restTemplate.getForEntity(actionsUri, Map.class);
+                if (actionsResp.getBody() != null) {
+                    Map body = actionsResp.getBody();
+                    extractions = toLong(body.get("extractions"));
+                    instagramLikes = toLong(body.get("instagramLikes"));
+                    instagramComments = toLong(body.get("instagramComments"));
+                    // se vier shares também, mantemos o do endpoint dedicado
+                }
+            } catch (Exception ae) {
+                logger.info("metrics.actions.summary indisponível (ok): {}", ae.getMessage());
+            }
+
+            long total = shares + extractions + instagramLikes + instagramComments;
+
             Map<String, Object> safe = new HashMap<>();
             safe.put("customerId", customerId);
             safe.put("hours", h);
             safe.put("totalActions", total);
             safe.put("peopleReached", peopleReached);
-            // opcional: breakdown (útil para evoluir UI sem quebrar)
             Map<String, Object> breakdown = new HashMap<>();
             breakdown.put("shares", shares);
             breakdown.put("extractions", extractions);
@@ -95,11 +150,11 @@ public class MetricsProxyService {
             breakdown.put("instagramComments", instagramComments);
             breakdown.put("total", total);
             safe.put("breakdown", breakdown);
-    
+
             overviewCache.put(key, new CacheEntry<>(safe, OVERVIEW_TTL_MS));
             return safe;
         } catch (Exception e) {
-            logger.warn("Falha ao consultar endpoints de metrics (people-reached/actions): {}", e.getMessage());
+            logger.warn("Falha ao montar overview (people-reached/shares/summary): {}", e.getMessage());
             Map<String, Object> fallback = Map.of(
                     "customerId", customerId,
                     "hours", h,

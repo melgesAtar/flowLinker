@@ -11,6 +11,9 @@ import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.amqp.core.ExchangeBuilder;
 import org.springframework.amqp.core.QueueBuilder;
+import org.springframework.amqp.core.Declarables;
+import org.springframework.amqp.core.AmqpAdmin;
+import org.springframework.amqp.rabbit.core.RabbitAdmin;
 
 @Configuration
 public class EventIngestionRabbitConfig {
@@ -66,5 +69,28 @@ public class EventIngestionRabbitConfig {
 		RabbitTemplate tpl = new RabbitTemplate(cf);
 		tpl.setMessageConverter(converter);
 		return tpl;
+	}
+
+	// Garante que exchange/queues/bindings sejam declarados no broker ao subir a aplicação
+	@Bean
+	public AmqpAdmin amqpAdmin(ConnectionFactory connectionFactory) {
+		RabbitAdmin admin = new RabbitAdmin(connectionFactory);
+		admin.setAutoStartup(true);
+		return admin;
+	}
+
+	@Bean
+	public Declarables eventTopology(TopicExchange eventsExchange,
+	                                 Queue activityQueue,
+	                                 Queue campaignQueue,
+	                                 Queue securityQueue,
+	                                 Binding bindActivity,
+	                                 Binding bindCampaign,
+	                                 Binding bindSecurity) {
+		return new Declarables(
+				eventsExchange,
+				activityQueue, campaignQueue, securityQueue,
+				bindActivity, bindCampaign, bindSecurity
+		);
 	}
 }
