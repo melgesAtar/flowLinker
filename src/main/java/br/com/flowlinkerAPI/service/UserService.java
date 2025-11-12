@@ -229,15 +229,29 @@ public class UserService {
             if("web".equals(type)) {
                 // Ajusta flags do cookie conforme o contexto da requisição
                 boolean isHttps = false;
+                boolean isCrossSite = false;
                 try {
                     String xfProto = request != null ? request.getHeader("X-Forwarded-Proto") : null;
                     isHttps = (xfProto != null && xfProto.equalsIgnoreCase("https")) || (request != null && request.isSecure());
+
+                    String origin = request != null ? request.getHeader("Origin") : null;
+                    if (origin != null && !origin.isBlank()) {
+                        java.net.URI o = java.net.URI.create(origin);
+                        String originHost = o.getHost();
+                        String serverName = request.getServerName();
+                        isCrossSite = originHost != null && serverName != null && !originHost.equalsIgnoreCase(serverName);
+                        // se a origem é https, consideramos seguro mesmo que o conector local esteja http
+                        if (!isHttps && "https".equalsIgnoreCase(o.getScheme())) {
+                            isHttps = true;
+                        }
+                    }
                 } catch (Exception ignored) {}
 
                 // Para cenários cross-site (ex.: frontend em domínio ngrok e API em outro),
-                // precisamos de SameSite=None e Secure=true para o cookie ser enviado.
-                String sameSite = isHttps ? "None" : "Lax";
-                boolean secure = isHttps;
+                // precisamos de SameSite=None e Secure=true para o cookie ser armazenado/enviado.
+                // Heurística: se cross-site OU conexão https detectada → None+Secure
+                String sameSite = (isCrossSite || isHttps) ? "None" : "Lax";
+                boolean secure = (isCrossSite || isHttps);
 
                 ResponseCookie cookie = ResponseCookie.from("jwtToken", token)
                     .httpOnly(true)
@@ -247,6 +261,7 @@ public class UserService {
                     .maxAge(Duration.ofDays(1))
                     .build();
                 response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+                logger.info("Cookie jwtToken emitido sameSite={} secure={} serverName={} origin={}", sameSite, secure, (request!=null?request.getServerName():null), (request!=null?request.getHeader("Origin"):null));
                 
                 redisTemplate.opsForValue().set(redisKey, token, Duration.ofMillis(expirationMillis));
                 logger.info("Token web emitido username={} expMs={}", username, expirationMillis);

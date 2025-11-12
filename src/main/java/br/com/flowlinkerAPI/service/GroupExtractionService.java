@@ -73,24 +73,53 @@ public class GroupExtractionService {
             extraction = groupExtractionRepository.save(extraction);
 
             if (payload.getGroups() != null) {
+                java.util.Set<String> seenExternal = new java.util.HashSet<>();
+                java.util.Set<String> seenUrls = new java.util.HashSet<>();
                 for (GroupExtractionRequestDTO.SimpleGroupDTO g : payload.getGroups()) {
                     if (g == null) continue;
-                    GroupCatalog grp = groupCatalogRepository.findByExternalId(g.getExternalId())
-                            .orElseGet(() -> groupCatalogRepository.findByUrl(g.getUrl()).orElse(null));
+
+                    String extId = g.getExternalId();
+                    String url = g.getUrl();
+                    // Dedup dentro do mesmo payload
+                    if (extId != null && !extId.isBlank() && !seenExternal.add(extId)) continue;
+                    if (url != null && !url.isBlank() && !seenUrls.add(url)) continue;
+
+                    GroupCatalog grp = groupCatalogRepository.findByExternalId(extId)
+                            .orElseGet(() -> groupCatalogRepository.findByUrl(url).orElse(null));
                     if (grp == null) {
                         grp = new GroupCatalog();
-                        grp.setExternalId(g.getExternalId());
+                        grp.setExternalId(extId);
                         grp.setName(sanitizeGroupName(g.getName()));
-                        grp.setUrl(g.getUrl());
+                        grp.setUrl(url);
                         grp.setMemberCount(g.getMemberCount());
                         grp.setLastSeenAt(Instant.now());
                     } else {
                         grp.setName(sanitizeGroupName(g.getName()));
-                        grp.setUrl(g.getUrl());
+                        grp.setUrl(url);
                         grp.setMemberCount(g.getMemberCount());
                         grp.setLastSeenAt(Instant.now());
                     }
-                    grp = groupCatalogRepository.save(grp);
+                    try {
+                        grp = groupCatalogRepository.save(grp);
+                    } catch (org.springframework.dao.DataIntegrityViolationException ex) {
+                        // Corrida/duplicata: recarrega existente e atualiza
+                        GroupCatalog existing = null;
+                        if (extId != null && !extId.isBlank()) {
+                            existing = groupCatalogRepository.findByExternalId(extId).orElse(null);
+                        }
+                        if (existing == null && url != null && !url.isBlank()) {
+                            existing = groupCatalogRepository.findByUrl(url).orElse(null);
+                        }
+                        if (existing != null) {
+                            existing.setName(grp.getName());
+                            existing.setUrl(grp.getUrl());
+                            existing.setMemberCount(grp.getMemberCount());
+                            existing.setLastSeenAt(grp.getLastSeenAt());
+                            grp = groupCatalogRepository.save(existing);
+                        } else {
+                            throw ex;
+                        }
+                    }
 
                     GroupExtractionItem item = new GroupExtractionItem();
                     item.setExtraction(extraction);

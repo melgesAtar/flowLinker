@@ -121,12 +121,20 @@ public class MetricsProxyService {
             int lim = limit != null ? Math.max(1, Math.min(limit, 100)) : 20;
             // Força timezone UTC na API de métricas
             URI uri = URI.create(baseUrl + "/metrics/recent?customerId=" + customerId + "&limit=" + lim + "&tz=UTC");
-            ResponseEntity<Map> resp = restTemplate.getForEntity(uri, Map.class);
-            Map<String, Object> body = resp.getBody();
+            ResponseEntity<Object> resp = restTemplate.getForEntity(uri, Object.class);
+            Object rawBody = resp.getBody();
             List<Map<String, Object>> items;
-            if (body != null && body.get("items") instanceof List list) {
-                // garantimos apenas os campos necessários
-                items = (List<Map<String, Object>>) list;
+            if (rawBody instanceof Map<?, ?> mapBody) {
+                Object listObj = mapBody.get("items");
+                if (listObj instanceof List<?> list) {
+                    items = (List<Map<String, Object>>) (List<?>) list;
+                    items = items.stream().map(this::normalizeActivity).toList();
+                } else {
+                    items = Collections.emptyList();
+                }
+            } else if (rawBody instanceof List<?> listRoot) {
+                // API pode retornar diretamente um array de atividades
+                items = (List<Map<String, Object>>) (List<?>) listRoot;
                 items = items.stream().map(this::normalizeActivity).toList();
             } else {
                 items = Collections.emptyList();
