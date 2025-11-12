@@ -20,12 +20,18 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.beans.factory.annotation.Value;
 import br.com.flowlinkerAPI.config.filter.RequestLoggingFilter;
+import br.com.flowlinkerAPI.config.filter.CorsAuditFilter;
 import br.com.flowlinkerAPI.config.security.CurrentRequest;
 
 import java.util.List;
 
 @Configuration
 public class SecurityConfig {
+
+    @Bean
+    public CorsAuditFilter corsAuditFilter() {
+        return new CorsAuditFilter();
+    }
 
     @Bean
     public JwtAuthenticationFilter jwtAuthenticationFilter(AuthenticationManager authenticationManager,
@@ -35,10 +41,9 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, AuthenticationManager authenticationManager, JwtAuthenticationFilter jwtAuthenticationFilter, RequestLoggingFilter requestLoggingFilter, CurrentRequest currentRequest) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, AuthenticationManager authenticationManager, JwtAuthenticationFilter jwtAuthenticationFilter, RequestLoggingFilter requestLoggingFilter, CurrentRequest currentRequest, CorsAuditFilter corsAuditFilter) throws Exception {
         http
         .csrf(AbstractHttpConfigurer::disable)
-        .cors(cors -> {})
             .authorizeHttpRequests(authz -> authz
             .requestMatchers(HttpMethod.OPTIONS).permitAll()
             .requestMatchers("/stripe/**").permitAll()
@@ -50,6 +55,7 @@ public class SecurityConfig {
             .anyRequest().authenticated())
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterAfter(requestLoggingFilter, JwtAuthenticationFilter.class)
+            .addFilterBefore(corsAuditFilter, JwtAuthenticationFilter.class)
             .addFilterAfter(new InactiveDeviceFilter(currentRequest), JwtAuthenticationFilter.class);  
         return http.build();
     }
@@ -64,16 +70,14 @@ public class SecurityConfig {
     }
 
     @Bean
-    public CorsConfigurationSource corsConfigurationSource(){
+    public CorsConfigurationSource corsConfigurationSource(@Value("${cors.allowedOriginPatterns:https://*.ngrok-free.app,https://*.ngrok.app,http://localhost:*,https://localhost:*,http://127.0.0.1:*}") String allowedOriginsCsv){
         CorsConfiguration configuration = new CorsConfiguration();
-        // Permite origens dinâmicas (ex.: ngrok) e ambientes locais
-        configuration.setAllowedOriginPatterns(List.of(
-            "https://*.ngrok-free.app",
-            "https://*.ngrok.app",
-            "http://localhost:*",
-            "https://localhost:*",
-            "http://127.0.0.1:*"
-        ));
+        // Permite origens dinâmicas (ex.: ngrok) e ambientes locais - parametrizável por env/properties
+        List<String> patterns = java.util.Arrays.stream(allowedOriginsCsv.split(","))
+            .map(String::trim)
+            .filter(s -> !s.isBlank())
+            .toList();
+        configuration.setAllowedOriginPatterns(patterns);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         // Libera todos os headers para não bloquear preflight (Access-Control-Request-Headers)
         configuration.setAllowedHeaders(List.of("*"));

@@ -34,7 +34,7 @@ public class PasswordResetService {
 	@Value("${password.reset.ttl.minutes:15}")
 	private long resetTtlMinutes;
 
-	@Value("${password.reset.redirect-base-url:http://localhost:5173/auth/reset-password}")
+	@Value("${password.reset.redirect-base-url}")
 	private String defaultRedirectBaseUrl;
 
 	public PasswordResetService(UserRepository userRepository,

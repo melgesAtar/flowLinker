@@ -31,9 +31,10 @@ COPY --from=build ${JAR_FILE} /app/app.jar
 # Porta padrão (pode ser sobrescrita com env SERVER_PORT ou -p do Docker)
 EXPOSE 8080
 
-# Healthcheck simples (opcional; ajuste caminho se necessário)
+# Healthcheck simples (pode customizar via HEALTHCHECK_PATH)
+ENV HEALTHCHECK_PATH="/actuator/health"
 HEALTHCHECK --interval=30s --timeout=3s --start-period=30s --retries=3 \
-  CMD wget -qO- http://127.0.0.1:${SERVER_PORT:-8080}/actuator/health || exit 1
+  CMD wget -qO- http://127.0.0.1:${SERVER_PORT:-8080}${HEALTHCHECK_PATH} || exit 1
 
 # Executa a aplicação (JAVA_OPTS pode ser customizado via env)
 ENTRYPOINT ["/bin/sh","-c","exec java $JAVA_OPTS -Djava.security.egd=file:/dev/./urandom -jar /app/app.jar"]

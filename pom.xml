@@ -99,6 +99,13 @@
             <version>3.3.0</version>
         </dependency>
 
+        <!-- Carregar .env automaticamente em ambiente local -->
+        <dependency>
+            <groupId>me.paulschwarz</groupId>
+            <artifactId>spring-dotenv</artifactId>
+            <version>4.0.0</version>
+        </dependency>
+
         <!-- https://mvnrepository.com/artifact/org.springframework.data/spring-data-redis -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
