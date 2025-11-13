@@ -10,7 +10,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
-@RequestMapping("/auth/")
+@RequestMapping("/auth")
 @Tag(name = "Auth", description = "Autenticação e sessão")
 public class AuthSessionController {
     
