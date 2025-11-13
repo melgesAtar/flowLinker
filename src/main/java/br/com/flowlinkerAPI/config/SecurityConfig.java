@@ -19,6 +19,8 @@ import org.springframework.beans.factory.annotation.Value;
 import br.com.flowlinkerAPI.config.filter.RequestLoggingFilter;
 import br.com.flowlinkerAPI.config.security.CurrentRequest;
 import org.springframework.web.cors.CorsConfigurationSource;
+import br.com.flowlinkerAPI.config.filter.ActiveSubscriptionFilter;
+import br.com.flowlinkerAPI.repository.CustomerRepository;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.Arrays; 
@@ -37,7 +39,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http, AuthenticationManager authenticationManager, JwtAuthenticationFilter jwtAuthenticationFilter, RequestLoggingFilter requestLoggingFilter, CurrentRequest currentRequest) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, AuthenticationManager authenticationManager, JwtAuthenticationFilter jwtAuthenticationFilter, RequestLoggingFilter requestLoggingFilter, CurrentRequest currentRequest, CustomerRepository customerRepository) throws Exception {
         http
         .cors(cors -> cors.configurationSource(corsConfigurationSource()))
         .csrf(AbstractHttpConfigurer::disable)
@@ -51,7 +53,8 @@ public class SecurityConfig {
             .anyRequest().authenticated())
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterAfter(requestLoggingFilter, JwtAuthenticationFilter.class)
-            .addFilterAfter(new InactiveDeviceFilter(currentRequest), JwtAuthenticationFilter.class);  
+            .addFilterAfter(new InactiveDeviceFilter(currentRequest), JwtAuthenticationFilter.class)
+            .addFilterAfter(new ActiveSubscriptionFilter(currentRequest, customerRepository), InactiveDeviceFilter.class);  
         return http
         .build();
     }
@@ -68,7 +71,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("https://flowlinker.com.br,https://*.ngrok-free.app,http://localhost:3000,http://localhost:5173"));
+        configuration.setAllowedOrigins(Arrays.asList("https://flowlinker.com.br, https://*.flowlinker.com.br,https://*.ngrok-free.app,http://localhost:3000,http://localhost:5173"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS")); // Métodos permitidos
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With"));
         configuration.setAllowCredentials(true);

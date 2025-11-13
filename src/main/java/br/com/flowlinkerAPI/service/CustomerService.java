@@ -231,6 +231,16 @@ public class CustomerService {
 
         customer.setCollectionMethodStripe(subscription.getCollectionMethod() != null ? subscription.getCollectionMethod() : customer.getCollectionMethodStripe());
 
+        // Preferir datas de trial quando a assinatura estiver em trial
+        if ("trialing".equals(subscription.getStatus())) {
+            if (subscription.getTrialStart() != null) {
+                customer.setSubscriptionStartDate(Instant.ofEpochSecond(subscription.getTrialStart()));
+            }
+            if (subscription.getTrialEnd() != null) {
+                customer.setSubscriptionEndDate(Instant.ofEpochSecond(subscription.getTrialEnd()));
+            }
+        }
+
         String status = subscription.getStatus();
         switch (status != null ? status : "unknown") {
             case "active":

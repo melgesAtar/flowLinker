@@ -58,6 +58,12 @@ public class Subscription {
     @Column(name = "updated_at")
     private Instant updatedAt = Instant.now();
 
+    @Column(name = "trial_start")
+    private Instant trialStart;
+
+    @Column(name = "trial_end")
+    private Instant trialEnd;
+
     @OneToMany(mappedBy = "subscription", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<SubscriptionItem> items;
 }
