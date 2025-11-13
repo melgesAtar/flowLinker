@@ -37,6 +37,5 @@ build/
 ### Mac OS ###
 .DS_Store
 
-### Application Properties ###
-application.properties
 .env
+!src/main/resources/application.properties
