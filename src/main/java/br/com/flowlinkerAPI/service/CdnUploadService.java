@@ -10,6 +10,8 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.S3Configuration;
 
+import java.io.InputStream;
+import java.security.DigestInputStream;
 import java.security.MessageDigest;
 
 @Service
@@ -60,6 +62,26 @@ public class CdnUploadService {
         return new UploadResult(key, url, sha256, bytes.length);
     }
 
+    public UploadResult uploadStream(String key, InputStream inputStream, long sizeBytes, String contentType) {
+        S3Client s3 = buildClient();
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            try (DigestInputStream dis = new DigestInputStream(inputStream, md)) {
+                PutObjectRequest put = PutObjectRequest.builder()
+                        .bucket(bucket)
+                        .key(key)
+                        .contentType(contentType != null ? contentType : "application/octet-stream")
+                        .build();
+                s3.putObject(put, RequestBody.fromInputStream(dis, sizeBytes));
+            }
+            String url = resolvePublicUrl(key);
+            String sha256Hex = bytesToHex(md.digest());
+            return new UploadResult(key, url, sha256Hex, sizeBytes);
+        } catch (Exception e) {
+            throw new RuntimeException("Stream upload failed", e);
+        }
+    }
+
     private S3Client buildClient() {
         var creds = StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, secretKey));
         var builder = S3Client.builder()
@@ -108,12 +130,16 @@ public class CdnUploadService {
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-256");
             byte[] digest = md.digest(data);
-            StringBuilder sb = new StringBuilder(digest.length * 2);
-            for (byte b : digest) sb.append(String.format("%02x", b));
-            return sb.toString();
+            return bytesToHex(digest);
         } catch (Exception e) {
             throw new RuntimeException("SHA-256 calculation failed", e);
         }
+    }
+
+    private String bytesToHex(byte[] digest) {
+        StringBuilder sb = new StringBuilder(digest.length * 2);
+        for (byte b : digest) sb.append(String.format("%02x", b));
+        return sb.toString();
     }
 }
 

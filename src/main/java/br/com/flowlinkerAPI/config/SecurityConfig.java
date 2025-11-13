@@ -71,7 +71,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList("https://flowlinker.com.br, https://*.flowlinker.com.br,https://*.ngrok-free.app,http://localhost:3000,http://localhost:5173"));
+        configuration.setAllowedOrigins(Arrays.asList("https://flowlinker.com.br, https://app.flowlinker.com.br,https://*.ngrok-free.app,http://localhost:3000,http://localhost:5173"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS")); // Métodos permitidos
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With"));
         configuration.setAllowCredentials(true);

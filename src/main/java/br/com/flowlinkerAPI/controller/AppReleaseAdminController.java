@@ -57,8 +57,7 @@ public class AppReleaseAdminController {
             String filename = (original != null ? original.replaceAll("^.*[\\\\/]", "") : "Flowlinker-" + safeVersion + ".msi");
             filename = filename.replaceAll("[^0-9A-Za-z._-]", "_");
             String key = baseFolder + filename;
-            byte[] bytes = file.getBytes();
-            var upload = cdnUploadService.uploadBytes(key, bytes, "application/octet-stream");
+            var upload = cdnUploadService.uploadStream(key, file.getInputStream(), file.getSize(), "application/octet-stream");
 
             var existing = appReleaseRepository.findFirstByPlatformAndArchAndIsActiveOrderByCreatedAtDesc(platform, arch, true)
                     .filter(r -> r.getVersion().equals(version))
