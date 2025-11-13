@@ -13,6 +13,8 @@ import jakarta.persistence.JoinColumn;
 import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.Setter;
+import jakarta.persistence.Convert;
+import br.com.flowlinkerAPI.model.converter.EncryptedStringAttributeConverter;
 
 @Entity
 @Getter
@@ -31,6 +33,7 @@ public class SocialMediaAccount{
     private Customer customer;
 
     private String username;
+    @Convert(converter = EncryptedStringAttributeConverter.class)
     private String password;
     
     private String name;
@@ -54,7 +57,6 @@ public class SocialMediaAccount{
 
     public enum SocialMediaAccountStatus {
         ACTIVE,
-        INACTIVE,
         BLOCKED,
         DELETED,
         SUSPENDED

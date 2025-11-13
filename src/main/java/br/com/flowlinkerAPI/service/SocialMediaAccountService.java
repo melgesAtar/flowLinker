@@ -10,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import br.com.flowlinkerAPI.dto.desktop.SocialMediaAccountResponse;
+import br.com.flowlinkerAPI.dto.desktop.SocialMediaAccountBasicResponse;
 import br.com.flowlinkerAPI.dto.desktop.SocialCookieDTO;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -348,8 +349,7 @@ public class SocialMediaAccountService {
     private String mapStatusToPt(SocialMediaAccount.SocialMediaAccountStatus s) {
         return switch (s) {
             case ACTIVE    -> "ATIVO";
-            case INACTIVE  -> "INATIVO";
-            case BLOCKED   -> "INATIVO"; 
+            case BLOCKED   -> "BLOQUEADO"; 
             case DELETED   -> "DELETADO";
             case SUSPENDED -> "SUSPENSO";
         };
@@ -367,7 +367,7 @@ public class SocialMediaAccountService {
     public SocialMediaAccount.SocialMediaAccountStatus parseStatusPt(String status) {
         return switch (status) {
             case "ATIVO" -> SocialMediaAccount.SocialMediaAccountStatus.ACTIVE;
-            case "INATIVO" -> SocialMediaAccount.SocialMediaAccountStatus.INACTIVE;
+            case "INATIVO" -> SocialMediaAccount.SocialMediaAccountStatus.BLOCKED;
             case "DELETADO" -> SocialMediaAccount.SocialMediaAccountStatus.DELETED;
             case "SUSPENSO" -> SocialMediaAccount.SocialMediaAccountStatus.SUSPENDED;
             case "BLOQUEADO" -> SocialMediaAccount.SocialMediaAccountStatus.BLOCKED;
@@ -386,6 +386,27 @@ public class SocialMediaAccountService {
         dto.cookiesUpdatedAt = a.getUpdatedAt();
         dto.cookiesExpiresAt = a.getCoookiesExpiry();
         return dto;
+    }
+
+    public List<SocialMediaAccountBasicResponse> listMineBasic(Long customerId) {
+        logger.info("Listando contas do cliente (básico, sem status) customerId={}", String.valueOf(customerId));
+        var rows = socialMediaAccountRepository.findAllByCustomerIdAndStatusNot(
+            customerId,
+            SocialMediaAccount.SocialMediaAccountStatus.DELETED
+        );
+        var out = new ArrayList<SocialMediaAccountBasicResponse>();
+        for (var a : rows) {
+            var dto = new SocialMediaAccountBasicResponse();
+            dto.id = a.getId();
+            dto.platform = a.getPlatform().name();
+            dto.username = a.getUsername();
+            dto.perfilName = a.getName();
+            dto.hasCookies = a.getCookiesJson() != null && !a.getCookiesJson().isBlank();
+            dto.cookiesUpdatedAt = a.getUpdatedAt();
+            dto.cookiesExpiresAt = a.getCoookiesExpiry();
+            out.add(dto);
+        }
+        return out;
     }
 
     

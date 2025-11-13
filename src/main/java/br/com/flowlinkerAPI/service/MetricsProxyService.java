@@ -46,7 +46,7 @@ public class MetricsProxyService {
     private static final long SHARES_TTL_MS = 5_000L;
 
     public MetricsProxyService(
-            @Value("${metrics.api.baseUrl:http://localhost:9090}") String baseUrl
+            @Value("${metrics.api.baseUrl:https://flowlinker-events.onrender.com}") String baseUrl
     ) {
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
         // RestTemplate simples (sem bean global) com timeouts razoáveis via system properties (padrões do JDK)

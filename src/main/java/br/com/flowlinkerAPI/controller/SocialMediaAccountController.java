@@ -12,6 +12,7 @@ import br.com.flowlinkerAPI.dto.desktop.SocialMediaAccountStatusPatch;
 import br.com.flowlinkerAPI.dto.desktop.SocialMediaAccountCreateRequest;
 import org.springframework.http.HttpStatus;
 import br.com.flowlinkerAPI.dto.desktop.SocialMediaAccountUpdateRequest;
+import br.com.flowlinkerAPI.dto.desktop.SocialMediaAccountBasicResponse;
 
 @RestController
 @RequestMapping("/social-media-accounts")
@@ -54,6 +55,11 @@ public class SocialMediaAccountController {
         }
         return ResponseEntity.ok(resp);
     }
+
+        @GetMapping("/mine")
+        public ResponseEntity<List<SocialMediaAccountBasicResponse>> listMine(@AuthenticationPrincipal CurrentUser user) {
+            return ResponseEntity.ok(service.listMineBasic(user.customerId()));
+        }
 
     @GetMapping("/{id}/cookies")
     public ResponseEntity<List<SocialCookieDTO>> getCookies(@PathVariable Long id,

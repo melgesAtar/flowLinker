@@ -50,4 +50,9 @@ public interface SocialMediaAccountRepository extends JpaRepository<SocialMediaA
     );
 
     Optional<SocialMediaAccount> findFirstByCustomerIdAndUsernameIgnoreCase(Long customerId, String username);
+
+    List<SocialMediaAccount> findAllByCustomerIdAndStatusNot(
+        Long customerId,
+        SocialMediaAccount.SocialMediaAccountStatus status
+    );
 }
