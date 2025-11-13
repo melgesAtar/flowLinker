@@ -1,5 +1,5 @@
 # ---- Stage 1: Build ---------------------------------------------------------
-FROM maven:3.9.7-eclipse-temurin-17 AS build
+FROM maven:3.9.7-eclipse-temurin-21 AS build
 
 WORKDIR /workspace
 
@@ -12,7 +12,7 @@ RUN --mount=type=cache,target=/root/.m2 mvn -q -DskipTests package
 
 
 # ---- Stage 2: Runtime -------------------------------------------------------
-FROM eclipse-temurin:17-jre-jammy AS runtime
+FROM eclipse-temurin:21-jre-jammy AS runtime
 
 # Configs básicas
 ENV TZ=Etc/UTC
