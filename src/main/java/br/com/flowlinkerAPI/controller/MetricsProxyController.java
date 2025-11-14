@@ -40,13 +40,24 @@ public class MetricsProxyController {
 
     @GetMapping("/recent")
     public ResponseEntity<Map<String, Object>> recent(@AuthenticationPrincipal CurrentUser user,
-                                                      @RequestParam(defaultValue = "20") Integer limit) {
+                                                      @RequestParam(defaultValue = "20") Integer limit,
+                                                      @RequestParam(required = false) String tz) {
         Long customerId = user.customerId();
         List<Map<String, Object>> items = service.getRecent(customerId, limit);
         Map<String, Object> out = new HashMap<>();
         out.put("customerId", customerId);
         out.put("items", items);
         return ResponseEntity.ok(out);
+    }
+
+    // Endpoint RAW para desktop: repassa a resposta exatamente como veio da API de eventos
+    @GetMapping("/recent/raw")
+    public ResponseEntity<Object> recentRaw(@AuthenticationPrincipal CurrentUser user,
+                                            @RequestParam(defaultValue = "20") Integer limit,
+                                            @RequestParam(required = false) String tz) {
+        Long customerId = user.customerId();
+        Object body = service.getRecentRaw(customerId, limit, tz);
+        return ResponseEntity.ok(body);
     }
 }
 

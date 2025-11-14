@@ -183,14 +183,12 @@ public class MetricsProxyService {
                 Object listObj = mapBody.get("items");
                 if (listObj instanceof List<?> list) {
                     items = (List<Map<String, Object>>) (List<?>) list;
-                    items = items.stream().map(this::normalizeActivity).toList();
                 } else {
                     items = Collections.emptyList();
                 }
             } else if (rawBody instanceof List<?> listRoot) {
                 // API pode retornar diretamente um array de atividades
                 items = (List<Map<String, Object>>) (List<?>) listRoot;
-                items = items.stream().map(this::normalizeActivity).toList();
             } else {
                 items = Collections.emptyList();
             }
@@ -204,12 +202,23 @@ public class MetricsProxyService {
         }
     }
 
-    private Map<String, Object> normalizeActivity(Map<String, Object> raw) {
-        Map<String, Object> m = new HashMap<>();
-        m.put("eventAt", raw.getOrDefault("eventAt", Instant.now().toString()));
-        m.put("actor", raw.getOrDefault("actor", null));
-        m.put("text", raw.getOrDefault("text", null));
-        return m;
+    public Object getRecentRaw(Long customerId, Integer limit, String tz) {
+        try {
+            int lim = limit != null ? Math.max(1, Math.min(limit, 100)) : 20;
+            String zone = (tz != null && !tz.isBlank()) ? tz : "UTC";
+            String encodedTz;
+            try {
+                encodedTz = java.net.URLEncoder.encode(zone, java.nio.charset.StandardCharsets.UTF_8);
+            } catch (Exception ignored) {
+                encodedTz = "UTC";
+            }
+            URI uri = URI.create(baseUrl + "/metrics/recent?customerId=" + customerId + "&limit=" + lim + "&tz=" + encodedTz);
+            ResponseEntity<Object> resp = restTemplate.getForEntity(uri, Object.class);
+            return resp.getBody();
+        } catch (Exception e) {
+            logger.warn("Falha no passthrough de recent (raw): {}", e.getMessage());
+            return Collections.emptyList();
+        }
     }
 
     private Long toLong(Object v) {

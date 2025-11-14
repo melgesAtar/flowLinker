@@ -2,22 +2,25 @@ package br.com.flowlinkerAPI.config.filter;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import javax.crypto.SecretKey;
+import br.com.flowlinkerAPI.config.security.CurrentUser;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
-import java.io.IOException;
-import java.util.ArrayList;
-import io.jsonwebtoken.security.Keys;
-import java.nio.charset.StandardCharsets;
-import javax.crypto.SecretKey;
-import jakarta.servlet.http.Cookie;
-import br.com.flowlinkerAPI.config.security.CurrentUser;
 
 
 public class JwtAuthenticationFilter extends BasicAuthenticationFilter {
@@ -105,8 +108,13 @@ public class JwtAuthenticationFilter extends BasicAuthenticationFilter {
                 }
                 String tokenType = String.valueOf(claims.get("type"));
                 String deviceFp = "device".equals(tokenType) ? fingerprint : null;
-                CurrentUser principal = new CurrentUser(username, customerId, deviceFp);
-                return new UsernamePasswordAuthenticationToken(principal, null, new ArrayList<>());
+                String role = claims.get("role") != null ? String.valueOf(claims.get("role")) : "USER";
+                List<GrantedAuthority> authorities = new ArrayList<>();
+                if (role != null && !role.isBlank()) {
+                    authorities.add(new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()));
+                }
+                CurrentUser principal = new CurrentUser(username, customerId, deviceFp, role);
+                return new UsernamePasswordAuthenticationToken(principal, null, authorities);
             }
         }
         return null;

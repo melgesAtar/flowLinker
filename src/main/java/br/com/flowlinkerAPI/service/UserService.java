@@ -70,6 +70,7 @@ public class UserService {
             String randomPassword = generateRandomPassword(12);
             String hashedPassword = passwordEncoder.encode(randomPassword);
             newUser.setPassword(hashedPassword);
+            newUser.setRole(User.Role.USER);
             return userRepository.save(newUser);
         });
     }
@@ -83,6 +84,7 @@ public class UserService {
                 String randomPassword = generateRandomPassword(12);
                 String hashedPassword = passwordEncoder.encode(randomPassword);
                 newUser.setPassword(hashedPassword);
+                newUser.setRole(User.Role.USER);
                 User saved = userRepository.save(newUser);
                 return new CreatedUserResultDTO(saved, true, randomPassword);
             });
@@ -113,12 +115,18 @@ public class UserService {
         if (!passwordEncoder.matches(password, user.getPassword())) {
             throw new BadCredentialsException("Invalid Credentials");
         }
-        logger.info("Login bem-sucedido username={} type={} customerId={}", username, type, (user.getCustomer() != null ? String.valueOf(user.getCustomer().getId()) : null));
+        if (user.getRole() == null) {
+            user.setRole(User.Role.USER);
+            userRepository.save(user);
+        }
+        User.Role role = user.getRole();
+        logger.info("Login bem-sucedido username={} type={} role={} customerId={}", username, type, role, (user.getCustomer() != null ? String.valueOf(user.getCustomer().getId()) : null));
         
         long expirationMillis = "device".equals(type) ? 604800000L : 86400000L;     
         
         Map<String, Object> claims = new HashMap<>();
         claims.put("type", type);
+        claims.put("role", role.name());
         
         String redisKey;
         

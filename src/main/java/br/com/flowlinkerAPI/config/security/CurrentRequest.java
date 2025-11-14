@@ -36,6 +36,16 @@ public class CurrentRequest {
         return cu != null ? cu.deviceFingerprint() : null;
     }
 
+    public String getRole() {
+        CurrentUser cu = get();
+        return cu != null ? cu.role() : null;
+    }
+
+    public boolean isAdmin() {
+        CurrentUser cu = get();
+        return cu != null && cu.isAdmin();
+    }
+
     public boolean isDevice() {
         return getDeviceFingerprint() != null;
     }
