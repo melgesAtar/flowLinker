@@ -247,6 +247,46 @@ public class SocialMediaAccountService {
         return out;
     }
 
+    public List<SocialMediaAccountResponse> listAccountsByPlatforms(List<String> platforms, Long customerId) {
+        // Se não vier nenhuma plataforma, retorna todas (exceto DELETED)
+        if (platforms == null || platforms.isEmpty()) {
+            var rows = socialMediaAccountRepository.findAllByCustomerIdAndStatusNot(
+                customerId,
+                SocialMediaAccount.SocialMediaAccountStatus.DELETED
+            );
+            return rows.stream().map(this::toResponse).toList();
+        }
+
+        // Normaliza e valida as plataformas
+        var parsed = new ArrayList<SocialMediaAccount.SocialMediaPlatform>();
+        for (String raw : platforms) {
+            if (raw == null || raw.isBlank()) continue;
+            try {
+                parsed.add(SocialMediaAccount.SocialMediaPlatform.valueOf(raw.trim().toUpperCase()));
+            } catch (IllegalArgumentException ex) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Platform invalida: " + raw);
+            }
+        }
+
+        if (parsed.isEmpty()) {
+            var rows = socialMediaAccountRepository.findAllByCustomerIdAndStatusNot(
+                customerId,
+                SocialMediaAccount.SocialMediaAccountStatus.DELETED
+            );
+            return rows.stream().map(this::toResponse).toList();
+        }
+
+        // Busca todas do cliente (não deletadas) e filtra em memória pelas plataformas desejadas
+        var rows = socialMediaAccountRepository.findAllByCustomerIdAndStatusNot(
+            customerId,
+            SocialMediaAccount.SocialMediaAccountStatus.DELETED
+        );
+        return rows.stream()
+            .filter(a -> parsed.contains(a.getPlatform()))
+            .map(this::toResponse)
+            .toList();
+    }
+
     public List<SocialMediaAccountResponse> listByStatus(String platform, String statusPt, Long customerId) {
         logger.info("Listando contas por status platform={} status={} customerId={}", platform, statusPt, customerId);
         var p = SocialMediaAccount.SocialMediaPlatform.valueOf(platform.toUpperCase());
