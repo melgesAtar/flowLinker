@@ -75,56 +75,88 @@ public class GroupExtractionService {
             if (payload.getGroups() != null) {
                 java.util.Set<String> seenExternal = new java.util.HashSet<>();
                 java.util.Set<String> seenUrls = new java.util.HashSet<>();
+                java.util.List<GroupExtractionRequestDTO.SimpleGroupDTO> unique = new java.util.ArrayList<>();
                 for (GroupExtractionRequestDTO.SimpleGroupDTO g : payload.getGroups()) {
                     if (g == null) continue;
-
                     String extId = g.getExternalId();
                     String url = g.getUrl();
-                    // Dedup dentro do mesmo payload
-                    if (extId != null && !extId.isBlank() && !seenExternal.add(extId)) continue;
-                    if (url != null && !url.isBlank() && !seenUrls.add(url)) continue;
+                    boolean duplicate = false;
+                    if (extId != null && !extId.isBlank() && !seenExternal.add(extId)) duplicate = true;
+                    if (url != null && !url.isBlank() && !seenUrls.add(url)) duplicate = true;
+                    if (!duplicate) unique.add(g);
+                }
 
-                    GroupCatalog grp = groupCatalogRepository.findByExternalId(extId)
-                            .orElseGet(() -> groupCatalogRepository.findByUrl(url).orElse(null));
-                    if (grp == null) {
-                        grp = new GroupCatalog();
-                        grp.setExternalId(extId);
-                        grp.setName(sanitizeGroupName(g.getName()));
-                        grp.setUrl(url);
-                        grp.setMemberCount(g.getMemberCount());
-                        grp.setLastSeenAt(Instant.now());
+                java.util.Set<String> extIds = unique.stream()
+                        .map(GroupExtractionRequestDTO.SimpleGroupDTO::getExternalId)
+                        .filter(id -> id != null && !id.isBlank())
+                        .collect(java.util.stream.Collectors.toSet());
+                java.util.Set<String> urls = unique.stream()
+                        .map(GroupExtractionRequestDTO.SimpleGroupDTO::getUrl)
+                        .filter(u -> u != null && !u.isBlank())
+                        .collect(java.util.stream.Collectors.toSet());
+
+                java.util.Map<String, GroupCatalog> byExtId = new java.util.HashMap<>();
+                java.util.Map<String, GroupCatalog> byUrl = new java.util.HashMap<>();
+                if (!extIds.isEmpty()) {
+                    for (GroupCatalog gc : groupCatalogRepository.findByExternalIdIn(extIds)) {
+                        if (gc.getExternalId() != null) byExtId.put(gc.getExternalId(), gc);
+                    }
+                }
+                if (!urls.isEmpty()) {
+                    for (GroupCatalog gc : groupCatalogRepository.findByUrlIn(urls)) {
+                        if (gc.getUrl() != null) byUrl.put(gc.getUrl(), gc);
+                    }
+                }
+
+                java.util.List<GroupCatalog> toCreate = new java.util.ArrayList<>();
+                java.util.List<GroupCatalog> toUpdate = new java.util.ArrayList<>();
+                for (GroupExtractionRequestDTO.SimpleGroupDTO g : unique) {
+                    String extId = g.getExternalId();
+                    String url = g.getUrl();
+                    GroupCatalog existing = (extId != null && byExtId.containsKey(extId)) ? byExtId.get(extId)
+                            : (url != null ? byUrl.get(url) : null);
+                    if (existing == null) {
+                        GroupCatalog gc = new GroupCatalog();
+                        gc.setExternalId(extId);
+                        gc.setName(sanitizeGroupName(g.getName()));
+                        gc.setUrl(url);
+                        gc.setMemberCount(g.getMemberCount());
+                        gc.setLastSeenAt(Instant.now());
+                        toCreate.add(gc);
                     } else {
-                        grp.setName(sanitizeGroupName(g.getName()));
-                        grp.setUrl(url);
-                        grp.setMemberCount(g.getMemberCount());
-                        grp.setLastSeenAt(Instant.now());
+                        existing.setName(sanitizeGroupName(g.getName()));
+                        existing.setUrl(url);
+                        existing.setMemberCount(g.getMemberCount());
+                        existing.setLastSeenAt(Instant.now());
+                        toUpdate.add(existing);
                     }
-                    try {
-                        grp = groupCatalogRepository.save(grp);
-                    } catch (org.springframework.dao.DataIntegrityViolationException ex) {
-                        // Corrida/duplicata: recarrega existente e atualiza
-                        GroupCatalog existing = null;
-                        if (extId != null && !extId.isBlank()) {
-                            existing = groupCatalogRepository.findByExternalId(extId).orElse(null);
-                        }
-                        if (existing == null && url != null && !url.isBlank()) {
-                            existing = groupCatalogRepository.findByUrl(url).orElse(null);
-                        }
-                        if (existing != null) {
-                            existing.setName(grp.getName());
-                            existing.setUrl(grp.getUrl());
-                            existing.setMemberCount(grp.getMemberCount());
-                            existing.setLastSeenAt(grp.getLastSeenAt());
-                            grp = groupCatalogRepository.save(existing);
-                        } else {
-                            throw ex;
-                        }
-                    }
+                }
 
+                if (!toCreate.isEmpty()) {
+                    java.util.List<GroupCatalog> created = groupCatalogRepository.saveAll(toCreate);
+                    for (GroupCatalog gc : created) {
+                        if (gc.getExternalId() != null) byExtId.put(gc.getExternalId(), gc);
+                        if (gc.getUrl() != null) byUrl.put(gc.getUrl(), gc);
+                    }
+                }
+                if (!toUpdate.isEmpty()) {
+                    groupCatalogRepository.saveAll(toUpdate);
+                }
+
+                java.util.List<GroupExtractionItem> items = new java.util.ArrayList<>(unique.size());
+                for (GroupExtractionRequestDTO.SimpleGroupDTO g : unique) {
+                    String extId = g.getExternalId();
+                    String url = g.getUrl();
+                    GroupCatalog gc = (extId != null && byExtId.containsKey(extId)) ? byExtId.get(extId)
+                            : (url != null ? byUrl.get(url) : null);
+                    if (gc == null) continue;
                     GroupExtractionItem item = new GroupExtractionItem();
                     item.setExtraction(extraction);
-                    item.setGroup(grp);
-                    groupExtractionItemRepository.save(item);
+                    item.setGroup(gc);
+                    items.add(item);
+                }
+                if (!items.isEmpty()) {
+                    groupExtractionItemRepository.saveAll(items);
                 }
             }
 

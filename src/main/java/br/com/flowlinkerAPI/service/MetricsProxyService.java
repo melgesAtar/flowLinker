@@ -3,22 +3,29 @@ package br.com.flowlinkerAPI.service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.net.URI;
-import java.time.Instant;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class MetricsProxyService {
 
     private static final Logger logger = LoggerFactory.getLogger(MetricsProxyService.class);
+    private static final ParameterizedTypeReference<Map<String, Object>> MAP_TYPE_REF =
+            new ParameterizedTypeReference<>() {};
 
     private final RestTemplate restTemplate;
     private final String baseUrl;
@@ -60,29 +67,17 @@ public class MetricsProxyService {
             return cached.value;
         }
         int h = (hours != null ? hours : 24);
-        try {
-            URI uri = URI.create(baseUrl + "/metrics/shares/count?customerId=" + customerId + "&hours=" + h);
-            ResponseEntity<Map> resp = restTemplate.getForEntity(uri, Map.class);
-            long shares = 0L;
-            if (resp.getBody() != null) {
-                shares = toLong(resp.getBody().get("shares"));
-            }
-            Map<String, Object> safe = new HashMap<>();
-            safe.put("customerId", customerId);
-            safe.put("hours", h);
-            safe.put("shares", shares);
-            sharesCache.put(key, new CacheEntry<>(safe, SHARES_TTL_MS));
-            return safe;
-        } catch (Exception e) {
-            logger.warn("Falha ao consultar shares/count no 9090: {}", e.getMessage());
-            Map<String, Object> fallback = Map.of(
-                "customerId", customerId,
-                "hours", h,
-                "shares", 0L
-            );
-            sharesCache.put(key, new CacheEntry<>(fallback, SHARES_TTL_MS));
-            return fallback;
-        }
+        Map<String, Object> body = getMapFromEvents("/metrics/shares/count", Map.of(
+                "customerId", String.valueOf(customerId),
+                "hours", String.valueOf(h)
+        ));
+        long shares = toLong(body.get("shares"));
+        Map<String, Object> safe = new HashMap<>();
+        safe.put("customerId", customerId);
+        safe.put("hours", h);
+        safe.put("shares", shares);
+        sharesCache.put(key, new CacheEntry<>(safe, SHARES_TTL_MS));
+        return safe;
     }
 
     public Map<String, Object> getOverview(Long customerId, Integer hours) {
@@ -92,131 +87,214 @@ public class MetricsProxyService {
             return cached.value;
         }
         int h = (hours != null ? hours : 24);
-        try {
-            long peopleReached = 0L;
-            long shares = 0L;
-            long extractions = 0L;
-            long instagramLikes = 0L;
-            long instagramComments = 0L;
-
-            // 1) People reached
-            try {
-                URI peopleUri = URI.create(baseUrl + "/metrics/people-reached?customerId=" + customerId + "&hours=" + h);
-                ResponseEntity<Map> peopleResp = restTemplate.getForEntity(peopleUri, Map.class);
-                if (peopleResp.getBody() != null) {
-                    peopleReached = toLong(peopleResp.getBody().get("peopleReached"));
-                }
-            } catch (Exception pe) {
-                logger.warn("metrics.people-reached falhou: {}", pe.getMessage());
-            }
-
-            // 2) Shares (novo endpoint dedicado)
-            try {
-                URI sharesUri = URI.create(baseUrl + "/metrics/shares/count?customerId=" + customerId + "&hours=" + h);
-                ResponseEntity<Map> sharesResp = restTemplate.getForEntity(sharesUri, Map.class);
-                if (sharesResp.getBody() != null) {
-                    shares = toLong(sharesResp.getBody().get("shares"));
-                }
-            } catch (Exception se) {
-                logger.info("metrics.shares.count indisponível (ok): {}", se.getMessage());
-            }
-
-            // 3) Opcional: actions/summary para complementar (extractions/likes/comments)
-            try {
-                URI actionsUri = URI.create(baseUrl + "/metrics/actions/summary?customerId=" + customerId + "&hours=" + h);
-                ResponseEntity<Map> actionsResp = restTemplate.getForEntity(actionsUri, Map.class);
-                if (actionsResp.getBody() != null) {
-                    Map body = actionsResp.getBody();
-                    extractions = toLong(body.get("extractions"));
-                    instagramLikes = toLong(body.get("instagramLikes"));
-                    instagramComments = toLong(body.get("instagramComments"));
-                    // se vier shares também, mantemos o do endpoint dedicado
-                }
-            } catch (Exception ae) {
-                logger.info("metrics.actions.summary indisponível (ok): {}", ae.getMessage());
-            }
-
-            long total = shares + extractions + instagramLikes + instagramComments;
-
-            Map<String, Object> safe = new HashMap<>();
-            safe.put("customerId", customerId);
-            safe.put("hours", h);
-            safe.put("totalActions", total);
-            safe.put("peopleReached", peopleReached);
-            Map<String, Object> breakdown = new HashMap<>();
-            breakdown.put("shares", shares);
-            breakdown.put("extractions", extractions);
-            breakdown.put("instagramLikes", instagramLikes);
-            breakdown.put("instagramComments", instagramComments);
-            breakdown.put("total", total);
-            safe.put("breakdown", breakdown);
-
-            overviewCache.put(key, new CacheEntry<>(safe, OVERVIEW_TTL_MS));
-            return safe;
-        } catch (Exception e) {
-            logger.warn("Falha ao montar overview (people-reached/shares/summary): {}", e.getMessage());
-            Map<String, Object> fallback = Map.of(
-                    "customerId", customerId,
-                    "hours", h,
-                    "totalActions", 0L,
-                    "peopleReached", 0L
-            );
-            overviewCache.put(key, new CacheEntry<>(fallback, OVERVIEW_TTL_MS));
-            return fallback;
+        Map<String, Object> body = getMapFromEvents("/metrics/overview", Map.of(
+                "customerId", String.valueOf(customerId),
+                "hours", String.valueOf(h)
+        ));
+        Map<String, Object> safe = new HashMap<>();
+        if (body != null) {
+            safe.putAll(body);
         }
+        safe.put("customerId", customerId);
+        safe.put("hours", h);
+        overviewCache.put(key, new CacheEntry<>(safe, OVERVIEW_TTL_MS));
+        return safe;
     }
 
-    public List<Map<String, Object>> getRecent(Long customerId, Integer limit) {
-        String key = customerId + ":" + String.valueOf(limit != null ? limit : 20);
+    public List<Map<String, Object>> getRecent(Long customerId, Integer limit, String tz) {
+        int lim = limit != null ? Math.max(1, Math.min(limit, 100)) : 20;
+        String zone = (tz != null && !tz.isBlank()) ? tz : "UTC";
+        String key = customerId + ":" + lim + ":" + zone;
         CacheEntry<List<Map<String, Object>>> cached = recentCache.get(key);
         if (cached != null && !cached.isExpired()) {
             return cached.value;
         }
-        try {
-            int lim = limit != null ? Math.max(1, Math.min(limit, 100)) : 20;
-            // Força timezone UTC na API de métricas
-            URI uri = URI.create(baseUrl + "/metrics/recent?customerId=" + customerId + "&limit=" + lim + "&tz=UTC");
-            ResponseEntity<Object> resp = restTemplate.getForEntity(uri, Object.class);
-            Object rawBody = resp.getBody();
-            List<Map<String, Object>> items;
-            if (rawBody instanceof Map<?, ?> mapBody) {
-                Object listObj = mapBody.get("items");
-                if (listObj instanceof List<?> list) {
-                    items = (List<Map<String, Object>>) (List<?>) list;
-                } else {
-                    items = Collections.emptyList();
-                }
-            } else if (rawBody instanceof List<?> listRoot) {
-                // API pode retornar diretamente um array de atividades
-                items = (List<Map<String, Object>>) (List<?>) listRoot;
-            } else {
-                items = Collections.emptyList();
-            }
-            recentCache.put(key, new CacheEntry<>(items, RECENT_TTL_MS));
-            return items;
-        } catch (Exception e) {
-            logger.warn("Falha ao consultar recent no 9090: {}", e.getMessage());
-            List<Map<String, Object>> fallback = Collections.emptyList();
-            recentCache.put(key, new CacheEntry<>(fallback, RECENT_TTL_MS));
-            return fallback;
-        }
+        List<Map<String, Object>> items = getListFromEvents("/metrics/recent", Map.of(
+                "customerId", String.valueOf(customerId),
+                "limit", String.valueOf(lim),
+                "tz", zone
+        ));
+        recentCache.put(key, new CacheEntry<>(items, RECENT_TTL_MS));
+        return items;
     }
 
     public Object getRecentRaw(Long customerId, Integer limit, String tz) {
-        try {
-            int lim = limit != null ? Math.max(1, Math.min(limit, 100)) : 20;
-            String zone = (tz != null && !tz.isBlank()) ? tz : "UTC";
-            String encodedTz;
-            try {
-                encodedTz = java.net.URLEncoder.encode(zone, java.nio.charset.StandardCharsets.UTF_8);
-            } catch (Exception ignored) {
-                encodedTz = "UTC";
+        int lim = limit != null ? Math.max(1, Math.min(limit, 100)) : 20;
+        String zone = (tz != null && !tz.isBlank()) ? tz : "UTC";
+        return getObjectFromEvents("/metrics/recent", Map.of(
+                "customerId", String.valueOf(customerId),
+                "limit", String.valueOf(lim),
+                "tz", zone
+        ));
+    }
+
+    public Map<String, Object> getActionsSummary(Long customerId, Integer hours) {
+        int h = hours != null ? hours : 24;
+        return getMapFromEvents("/metrics/actions/summary", Map.of(
+                "customerId", String.valueOf(customerId),
+                "hours", String.valueOf(h)
+        ));
+    }
+
+    public Map<String, Object> getErrors(Long customerId, Integer hours) {
+        int h = hours != null ? hours : 24;
+        return getMapFromEvents("/metrics/errors", Map.of(
+                "customerId", String.valueOf(customerId),
+                "hours", String.valueOf(h)
+        ));
+    }
+
+    public Map<String, Object> getPeopleReached(Long customerId, Integer hours) {
+        int h = hours != null ? hours : 24;
+        return getMapFromEvents("/metrics/people-reached", Map.of(
+                "customerId", String.valueOf(customerId),
+                "hours", String.valueOf(h)
+        ));
+    }
+
+    public Object getDebugAccountCreated(Long customerId, Integer limit, String tz) {
+        int lim = limit != null ? Math.max(1, Math.min(limit, 100)) : 20;
+        String zone = (tz != null && !tz.isBlank()) ? tz : "UTC";
+        return getObjectFromEvents("/metrics/debug/account-created", Map.of(
+                "customerId", String.valueOf(customerId),
+                "limit", String.valueOf(lim),
+                "tz", zone
+        ));
+    }
+
+    public Object getExtractionEvents(Long customerId, Integer limit, String tz) {
+        int lim = limit != null ? Math.max(1, Math.min(limit, 100)) : 20;
+        String zone = (tz != null && !tz.isBlank()) ? tz : "UTC";
+        return getObjectFromEvents("/metrics/extractions/events", Map.of(
+                "customerId", String.valueOf(customerId),
+                "limit", String.valueOf(lim),
+                "tz", zone
+        ));
+    }
+
+    public Map<String, Object> getDistributionSocial(Long customerId, Integer hours) {
+        int h = hours != null ? hours : 24;
+        return getMapFromEvents("/metrics/distribution/social", Map.of(
+                "customerId", String.valueOf(customerId),
+                "hours", String.valueOf(h)
+        ));
+    }
+
+    public Object getDaily(Long customerId, Integer days) {
+        int d = days != null ? days : 7;
+        return getObjectFromEvents("/metrics/daily", Map.of(
+                "customerId", String.valueOf(customerId),
+                "days", String.valueOf(d)
+        ));
+    }
+
+    public Object getHeatmap(Long customerId, Integer days) {
+        int d = days != null ? days : 7;
+        return getObjectFromEvents("/metrics/heatmap", Map.of(
+                "customerId", String.valueOf(customerId),
+                "days", String.valueOf(d)
+        ));
+    }
+
+    public Object getRankingPersonas(Long customerId, Integer hours, Integer limit) {
+        int h = hours != null ? hours : 24;
+        int lim = limit != null ? Math.max(1, Math.min(limit, 100)) : 10;
+        return getObjectFromEvents("/metrics/ranking/personas", Map.of(
+                "customerId", String.valueOf(customerId),
+                "hours", String.valueOf(h),
+                "limit", String.valueOf(lim)
+        ));
+    }
+
+    public Map<String, Object> getCampaignsCount(Long customerId, Integer hours) {
+        int h = hours != null ? hours : 24;
+        return getMapFromEvents("/metrics/campaigns/count", Map.of(
+                "customerId", String.valueOf(customerId),
+                "hours", String.valueOf(h)
+        ));
+    }
+
+    @NonNull
+    private URI buildUri(String path, Map<String, String> params) {
+        StringBuilder sb = new StringBuilder(baseUrl);
+        if (!path.startsWith("/")) {
+            sb.append("/");
+        }
+        sb.append(path.startsWith("/") ? path.substring(1) : path);
+        if (params != null && !params.isEmpty()) {
+            sb.append("?");
+            boolean first = true;
+            for (Map.Entry<String, String> entry : params.entrySet()) {
+                if (entry.getValue() == null) continue;
+                if (!first) sb.append("&");
+                first = false;
+                sb.append(entry.getKey());
+                sb.append("=");
+                sb.append(URLEncoder.encode(entry.getValue(), StandardCharsets.UTF_8));
             }
-            URI uri = URI.create(baseUrl + "/metrics/recent?customerId=" + customerId + "&limit=" + lim + "&tz=" + encodedTz);
+        }
+        return Objects.requireNonNull(URI.create(sb.toString()));
+    }
+
+    private Map<String, Object> getMapFromEvents(String path, Map<String, String> params) {
+        try {
+            URI uri = Objects.requireNonNull(buildUri(path, params));
+            ResponseEntity<Map<String, Object>> resp = restTemplate.exchange(
+                    uri,
+                    Objects.requireNonNull(HttpMethod.GET),
+                    null,
+                    Objects.requireNonNull(MAP_TYPE_REF)
+            );
+            Map<String, Object> map = resp.getBody();
+            if (map != null) {
+                return new HashMap<>(map);
+            }
+        } catch (Exception e) {
+            logger.warn("Falha ao consultar {}: {}", path, e.getMessage());
+        }
+        return Collections.emptyMap();
+    }
+
+    private List<Map<String, Object>> getListFromEvents(String path, Map<String, String> params) {
+        try {
+            URI uri = Objects.requireNonNull(buildUri(path, params));
+            ResponseEntity<Object> resp = restTemplate.getForEntity(uri, Object.class);
+            Object body = resp.getBody();
+            if (body instanceof List<?> list) {
+                return list.stream()
+                        .filter(Map.class::isInstance)
+                        .map(item -> {
+                            Map<?, ?> src = (Map<?, ?>) item;
+                            Map<String, Object> copy = new HashMap<>();
+                            src.forEach((k, v) -> copy.put(String.valueOf(k), v));
+                            return copy;
+                        })
+                        .toList();
+            }
+            if (body instanceof Map<?, ?> map && map.get("items") instanceof List<?> list) {
+                return list.stream()
+                        .filter(Map.class::isInstance)
+                        .map(item -> {
+                            Map<?, ?> src = (Map<?, ?>) item;
+                            Map<String, Object> copy = new HashMap<>();
+                            src.forEach((k, v) -> copy.put(String.valueOf(k), v));
+                            return copy;
+                        })
+                        .toList();
+            }
+        } catch (Exception e) {
+            logger.warn("Falha ao consultar lista {}: {}", path, e.getMessage());
+        }
+        return Collections.emptyList();
+    }
+
+    private Object getObjectFromEvents(String path, Map<String, String> params) {
+        try {
+            URI uri = Objects.requireNonNull(buildUri(path, params));
             ResponseEntity<Object> resp = restTemplate.getForEntity(uri, Object.class);
             return resp.getBody();
         } catch (Exception e) {
-            logger.warn("Falha no passthrough de recent (raw): {}", e.getMessage());
+            logger.warn("Falha ao consultar {}: {}", path, e.getMessage());
             return Collections.emptyList();
         }
     }
