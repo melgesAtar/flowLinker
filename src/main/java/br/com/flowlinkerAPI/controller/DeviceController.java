@@ -6,10 +6,17 @@ import br.com.flowlinkerAPI.dto.device.HeartbeatResponse;
 import br.com.flowlinkerAPI.model.AppRelease;
 import br.com.flowlinkerAPI.model.Device;
 import br.com.flowlinkerAPI.model.DeviceStatus;
+import br.com.flowlinkerAPI.dto.device.DeviceCountsDTO;
+import br.com.flowlinkerAPI.dto.device.DeviceSummaryDTO;
+import br.com.flowlinkerAPI.dto.device.UpdateDeviceStatusRequest;
 import br.com.flowlinkerAPI.repository.DeviceRepository;
 import br.com.flowlinkerAPI.repository.AppReleaseRepository;
 import br.com.flowlinkerAPI.repository.CustomerRepository;
 import br.com.flowlinkerAPI.service.DevicePolicyService;
+import br.com.flowlinkerAPI.service.DeviceService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -18,9 +25,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
+import java.util.Objects;
 
 @RestController
 @RequestMapping("/devices")
+@Tag(name = "Devices", description = "Gerenciamento de dispositivos do cliente e heartbeat do app desktop")
 public class DeviceController {
 
     private final DeviceRepository deviceRepository;
@@ -28,15 +37,23 @@ public class DeviceController {
     private final CurrentRequest currentRequest;
     private final CustomerRepository customerRepository;
     private final DevicePolicyService devicePolicyService;
+    private final DeviceService deviceService;
 
-    public DeviceController(DeviceRepository deviceRepository, AppReleaseRepository appReleaseRepository, CurrentRequest currentRequest, CustomerRepository customerRepository, DevicePolicyService devicePolicyService) {
+    public DeviceController(DeviceRepository deviceRepository,
+                            AppReleaseRepository appReleaseRepository,
+                            CurrentRequest currentRequest,
+                            CustomerRepository customerRepository,
+                            DevicePolicyService devicePolicyService,
+                            DeviceService deviceService) {
         this.deviceRepository = deviceRepository;
         this.appReleaseRepository = appReleaseRepository;
         this.currentRequest = currentRequest;
         this.customerRepository = customerRepository;
         this.devicePolicyService = devicePolicyService;
+        this.deviceService = deviceService;
     }
 
+    @Operation(summary = "Heartbeat (GET)", description = "Endpoint legado de heartbeat para dispositivos.")
     @org.springframework.web.bind.annotation.GetMapping("/heartbeat")
     public org.springframework.http.ResponseEntity<HeartbeatResponse> heartbeatGet(
             @org.springframework.web.bind.annotation.RequestParam(required = false) String deviceId,
@@ -84,8 +101,63 @@ public class DeviceController {
         return org.springframework.http.ResponseEntity.ok(resp);
     }
 
+    @Operation(summary = "Listar dispositivos do cliente", description = "Retorna todos os dispositivos vinculados ao cliente autenticado. Use status=ACTIVE/INACTIVE para filtrar.")
+    @org.springframework.web.bind.annotation.GetMapping("/mine")
+    public org.springframework.http.ResponseEntity<?> myDevices(@org.springframework.web.bind.annotation.RequestParam(required = false) String status) {
+        Long customerId = currentRequest.getCustomerId();
+        if (customerId == null) {
+            return org.springframework.http.ResponseEntity.status(401).build();
+        }
+        DeviceStatus filter = null;
+        if (status != null && !status.isBlank()) {
+            try {
+                filter = DeviceStatus.valueOf(status.toUpperCase());
+            } catch (IllegalArgumentException ex) {
+                return org.springframework.http.ResponseEntity.badRequest()
+                        .body(java.util.Map.of("code", "INVALID_STATUS"));
+            }
+        }
+        java.util.List<DeviceSummaryDTO> devices = deviceService.listDevices(customerId, filter);
+        return org.springframework.http.ResponseEntity.ok(devices);
+    }
+
+    @Operation(summary = "Contagem de dispositivos do cliente", description = "Retorna total, ativos, inativos e limite permitido para o cliente autenticado.")
+    @org.springframework.web.bind.annotation.GetMapping("/mine/counts")
+    public org.springframework.http.ResponseEntity<DeviceCountsDTO> myDeviceCounts() {
+        Long customerId = currentRequest.getCustomerId();
+        if (customerId == null) {
+            return org.springframework.http.ResponseEntity.status(401).build();
+        }
+        return org.springframework.http.ResponseEntity.ok(deviceService.getCounts(customerId));
+    }
+
+    @Operation(summary = "Atualizar status de um dispositivo", description = "Define o status (ACTIVE, INACTIVE etc.) de um device pertencente ao cliente autenticado.")
+    @org.springframework.web.bind.annotation.PatchMapping("/{deviceId}/status")
+    public org.springframework.http.ResponseEntity<?> updateStatus(@org.springframework.web.bind.annotation.PathVariable Long deviceId,
+                                                                   @org.springframework.web.bind.annotation.RequestBody UpdateDeviceStatusRequest body) {
+        Long customerId = currentRequest.getCustomerId();
+        if (customerId == null) {
+            return org.springframework.http.ResponseEntity.status(401).build();
+        }
+        if (body == null || body.status() == null || body.status().isBlank()) {
+            return org.springframework.http.ResponseEntity.badRequest()
+                    .body(java.util.Map.of("code", "STATUS_REQUIRED"));
+        }
+        DeviceStatus status;
+        try {
+            status = DeviceStatus.valueOf(body.status().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            return org.springframework.http.ResponseEntity.badRequest()
+                    .body(java.util.Map.of("code", "INVALID_STATUS"));
+        }
+        DeviceSummaryDTO updated = deviceService.updateStatus(customerId, deviceId, status);
+        return org.springframework.http.ResponseEntity.ok(updated);
+    }
+
+    @Operation(summary = "Limites de dispositivos por customerId", description = "Consulta limites e quantidade ativa para o cliente informado.")
     @org.springframework.web.bind.annotation.GetMapping("/limits")
-    public org.springframework.http.ResponseEntity<?> getLimits(@org.springframework.web.bind.annotation.RequestParam Long customerId) {
+    public org.springframework.http.ResponseEntity<?> getLimits(@Parameter(description = "ID do cliente") @org.springframework.web.bind.annotation.RequestParam Long customerId) {
+        customerId = Objects.requireNonNull(customerId, "customerId");
         var customer = customerRepository.findById(customerId).orElse(null);
         if (customer == null) {
             return org.springframework.http.ResponseEntity.status(404).body(java.util.Map.of("code","CUSTOMER_NOT_FOUND"));
@@ -125,6 +197,7 @@ public class DeviceController {
         try { return Integer.parseInt(s.replaceAll("[^0-9].*$", "")); } catch (Exception e) { return 0; }
     }
 
+    @Operation(summary = "Heartbeat (POST)", description = "Principal endpoint de heartbeat utilizado pelo app desktop.")
     @PostMapping("/heartbeat")
     public ResponseEntity<HeartbeatResponse> heartbeat(@RequestBody(required = false) HeartbeatRequest body,
                                                        HttpServletRequest servletRequest) {

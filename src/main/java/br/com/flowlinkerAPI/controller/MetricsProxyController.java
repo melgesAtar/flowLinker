@@ -11,9 +11,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/metrics")
@@ -28,33 +25,24 @@ public class MetricsProxyController {
 
     @Operation(summary = "Overview", description = "Proxy para o endpoint /metrics/overview da API de eventos.")
     @GetMapping("/overview")
-    public ResponseEntity<Map<String, Object>> overview(@AuthenticationPrincipal CurrentUser user,
-                                                        @Parameter(description = "Janela em horas") @RequestParam(defaultValue = "24") Integer hours) {
-        Long customerId = user.customerId();
-        Map<String, Object> body = service.getOverview(customerId, hours);
-        return ResponseEntity.ok(body);
+    public ResponseEntity<Object> overview(@AuthenticationPrincipal CurrentUser user,
+                                           @Parameter(description = "Janela em horas") @RequestParam(defaultValue = "24") Integer hours) {
+        return ResponseEntity.ok(service.getOverview(user.customerId(), hours));
     }
 
     @Operation(summary = "Total de compartilhamentos", description = "Proxy para /metrics/shares/count.")
     @GetMapping({"/shares/count", "/shares"})
-    public ResponseEntity<Map<String, Object>> shares(@AuthenticationPrincipal CurrentUser user,
-                                                      @Parameter(description = "Janela em horas") @RequestParam(defaultValue = "24") Integer hours) {
-        Long customerId = user.customerId();
-        Map<String, Object> body = service.getSharesCount(customerId, hours);
-        return ResponseEntity.ok(body);
+    public ResponseEntity<Object> shares(@AuthenticationPrincipal CurrentUser user,
+                                         @Parameter(description = "Janela em horas") @RequestParam(defaultValue = "24") Integer hours) {
+        return ResponseEntity.ok(service.getSharesCount(user.customerId(), hours));
     }
 
     @Operation(summary = "Atividades recentes (formatado)", description = "Proxy para /metrics/recent com formatação compatível com o painel.")
     @GetMapping("/recent")
-    public ResponseEntity<Map<String, Object>> recent(@AuthenticationPrincipal CurrentUser user,
-                                                      @Parameter(description = "Quantidade máxima de eventos") @RequestParam(defaultValue = "20") Integer limit,
-                                                      @Parameter(description = "Timezone (ex.: America/Sao_Paulo)") @RequestParam(required = false) String tz) {
-        Long customerId = user.customerId();
-        List<Map<String, Object>> items = service.getRecent(customerId, limit, tz);
-        Map<String, Object> out = new HashMap<>();
-        out.put("customerId", customerId);
-        out.put("items", items);
-        return ResponseEntity.ok(out);
+    public ResponseEntity<Object> recent(@AuthenticationPrincipal CurrentUser user,
+                                         @Parameter(description = "Quantidade máxima de eventos") @RequestParam(defaultValue = "20") Integer limit,
+                                         @Parameter(description = "Timezone (ex.: America/Sao_Paulo)") @RequestParam(required = false) String tz) {
+        return ResponseEntity.ok(service.getRecent(user.customerId(), limit, tz));
     }
 
     @Operation(summary = "Atividades recentes (raw)", description = "Repassa exatamente o retorno do /metrics/recent da API de eventos.")
@@ -62,29 +50,27 @@ public class MetricsProxyController {
     public ResponseEntity<Object> recentRaw(@AuthenticationPrincipal CurrentUser user,
                                             @Parameter(description = "Quantidade máxima de eventos") @RequestParam(defaultValue = "20") Integer limit,
                                             @Parameter(description = "Timezone desejada") @RequestParam(required = false) String tz) {
-        Long customerId = user.customerId();
-        Object body = service.getRecentRaw(customerId, limit, tz);
-        return ResponseEntity.ok(body);
+        return ResponseEntity.ok(service.getRecentRaw(user.customerId(), limit, tz));
     }
 
     @Operation(summary = "Resumo de ações", description = "Proxy para /metrics/actions/summary.")
     @GetMapping("/actions/summary")
-    public ResponseEntity<Map<String, Object>> actionsSummary(@AuthenticationPrincipal CurrentUser user,
-                                                              @Parameter(description = "Janela em horas") @RequestParam(defaultValue = "24") Integer hours) {
+    public ResponseEntity<Object> actionsSummary(@AuthenticationPrincipal CurrentUser user,
+                                                 @Parameter(description = "Janela em horas") @RequestParam(defaultValue = "24") Integer hours) {
         return ResponseEntity.ok(service.getActionsSummary(user.customerId(), hours));
     }
 
     @Operation(summary = "Resumo de erros", description = "Proxy para /metrics/errors.")
     @GetMapping("/errors")
-    public ResponseEntity<Map<String, Object>> errors(@AuthenticationPrincipal CurrentUser user,
-                                                      @Parameter(description = "Janela em horas") @RequestParam(defaultValue = "24") Integer hours) {
+    public ResponseEntity<Object> errors(@AuthenticationPrincipal CurrentUser user,
+                                         @Parameter(description = "Janela em horas") @RequestParam(defaultValue = "24") Integer hours) {
         return ResponseEntity.ok(service.getErrors(user.customerId(), hours));
     }
 
     @Operation(summary = "Pessoas alcançadas", description = "Proxy para /metrics/people-reached.")
     @GetMapping("/people-reached")
-    public ResponseEntity<Map<String, Object>> peopleReached(@AuthenticationPrincipal CurrentUser user,
-                                                             @Parameter(description = "Janela em horas") @RequestParam(defaultValue = "24") Integer hours) {
+    public ResponseEntity<Object> peopleReached(@AuthenticationPrincipal CurrentUser user,
+                                                @Parameter(description = "Janela em horas") @RequestParam(defaultValue = "24") Integer hours) {
         return ResponseEntity.ok(service.getPeopleReached(user.customerId(), hours));
     }
 
@@ -106,8 +92,8 @@ public class MetricsProxyController {
 
     @Operation(summary = "Distribuição por rede social", description = "Proxy para /metrics/distribution/social.")
     @GetMapping("/distribution/social")
-    public ResponseEntity<Map<String, Object>> distributionSocial(@AuthenticationPrincipal CurrentUser user,
-                                                                  @Parameter(description = "Janela em horas") @RequestParam(defaultValue = "24") Integer hours) {
+    public ResponseEntity<Object> distributionSocial(@AuthenticationPrincipal CurrentUser user,
+                                                     @Parameter(description = "Janela em horas") @RequestParam(defaultValue = "24") Integer hours) {
         return ResponseEntity.ok(service.getDistributionSocial(user.customerId(), hours));
     }
 
@@ -135,8 +121,8 @@ public class MetricsProxyController {
 
     @Operation(summary = "Campanhas iniciadas", description = "Proxy para /metrics/campaigns/count.")
     @GetMapping("/campaigns/count")
-    public ResponseEntity<Map<String, Object>> campaignsCount(@AuthenticationPrincipal CurrentUser user,
-                                                              @Parameter(description = "Janela em horas") @RequestParam(defaultValue = "24") Integer hours) {
+    public ResponseEntity<Object> campaignsCount(@AuthenticationPrincipal CurrentUser user,
+                                                 @Parameter(description = "Janela em horas") @RequestParam(defaultValue = "24") Integer hours) {
         return ResponseEntity.ok(service.getCampaignsCount(user.customerId(), hours));
     }
 }

@@ -1,18 +1,22 @@
 package br.com.flowlinkerAPI.service;
 
-import br.com.flowlinkerAPI.exceptions.LimitDevicesException;
-import org.springframework.stereotype.Service;
-import br.com.flowlinkerAPI.repository.DeviceRepository;
-import br.com.flowlinkerAPI.model.Device;
-import br.com.flowlinkerAPI.model.DeviceStatus;
-import org.springframework.transaction.annotation.Transactional;
-import br.com.flowlinkerAPI.repository.CustomerRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import br.com.flowlinkerAPI.model.Customer;
 import br.com.flowlinkerAPI.dto.AddDeviceRequestDTO;
 import br.com.flowlinkerAPI.dto.AddDeviceResponseDTO;
+import br.com.flowlinkerAPI.dto.device.DeviceCountsDTO;
+import br.com.flowlinkerAPI.dto.device.DeviceSummaryDTO;
 import br.com.flowlinkerAPI.exceptions.CustomerNotFoundException;
+import br.com.flowlinkerAPI.exceptions.LimitDevicesException;
+import br.com.flowlinkerAPI.model.Customer;
+import br.com.flowlinkerAPI.model.Device;
+import br.com.flowlinkerAPI.model.DeviceStatus;
+import br.com.flowlinkerAPI.repository.CustomerRepository;
+import br.com.flowlinkerAPI.repository.DeviceRepository;
+import java.util.List;
+import java.util.Objects;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 
 @Service 
@@ -30,12 +34,13 @@ public class DeviceService {
 
     @Transactional
     public AddDeviceResponseDTO addDevice(AddDeviceRequestDTO addDeviceRequestDTO){
-        
-        Customer customer = customerRepository.findById(addDeviceRequestDTO.getCustomerId())
+
+        Long customerId = Objects.requireNonNull(addDeviceRequestDTO.getCustomerId(), "customerId");
+        Customer customer = customerRepository.findById(customerId)
             .orElseThrow(() -> new CustomerNotFoundException("Customer not found"));
     
-        int currentCount = deviceRepository.countByCustomerIdAndStatus(addDeviceRequestDTO.getCustomerId(), DeviceStatus.ACTIVE);
-        int max = devicePolicyService.getAllowedDevices(addDeviceRequestDTO.getCustomerId(), customer.getOfferType());
+        int currentCount = deviceRepository.countByCustomerIdAndStatus(customerId, DeviceStatus.ACTIVE);
+        int max = devicePolicyService.getAllowedDevices(customerId, customer.getOfferType());
     
         if (currentCount >= max) {
            throw new LimitDevicesException("Limit of devices by employee reached " + customer.getOfferType() + " (máx: " + max + ")");
@@ -48,20 +53,78 @@ public class DeviceService {
         newDevice.setName(addDeviceRequestDTO.getName());
         newDevice.setCustomer(customer);
         newDevice.setStatus(DeviceStatus.ACTIVE);
-        deviceRepository.save(newDevice);
+        deviceRepository.save(Objects.requireNonNull(newDevice));
 
         return new AddDeviceResponseDTO("Device added successfully for customer " + customer.getEmail() + "Device: " + newDevice.getFingerprint());
     }
 
     public void deactivateByCustomerId(Long customerId) {
-        var devices = deviceRepository.findByCustomerId(customerId);
+        customerId = Objects.requireNonNull(customerId, "customerId");
+        List<Device> devices = deviceRepository.findByCustomerId(customerId);
         for (Device d : devices) {
             d.setStatus(DeviceStatus.INACTIVE);
         }
-        deviceRepository.saveAll(devices);
+        if (!devices.isEmpty()) {
+            deviceRepository.saveAll(devices);
+        }
     }
 
     public void saveDevice(Device device) {
-        deviceRepository.save(device);
+        deviceRepository.save(Objects.requireNonNull(device));
+    }
+
+    @Transactional(readOnly = true)
+    public List<DeviceSummaryDTO> listDevices(Long customerId, DeviceStatus status) {
+        customerId = Objects.requireNonNull(customerId, "customerId");
+        List<Device> devices = (status != null)
+                ? deviceRepository.findByCustomerIdAndStatus(customerId, status)
+                : deviceRepository.findByCustomerId(customerId);
+        return devices.stream().map(this::toSummary).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public DeviceCountsDTO getCounts(Long customerId) {
+        customerId = Objects.requireNonNull(customerId, "customerId");
+        int total = deviceRepository.countByCustomerId(customerId);
+        int active = deviceRepository.countByCustomerIdAndStatus(customerId, DeviceStatus.ACTIVE);
+        int inactive = deviceRepository.countByCustomerIdAndStatus(customerId, DeviceStatus.INACTIVE);
+        int allowed = devicePolicyService.getAllowedDevices(customerId,
+                customerRepository.findById(customerId).map(Customer::getOfferType).orElse(null));
+        return new DeviceCountsDTO(customerId, total, active, inactive, allowed);
+    }
+
+    @Transactional
+    public DeviceSummaryDTO updateStatus(Long customerId, Long deviceId, DeviceStatus newStatus) {
+        customerId = Objects.requireNonNull(customerId, "customerId");
+        deviceId = Objects.requireNonNull(deviceId, "deviceId");
+        Device device = deviceRepository.findById(deviceId)
+                .orElseThrow(() -> new CustomerNotFoundException("Device not found"));
+        Customer owner = device.getCustomer();
+        Long ownerId = owner != null ? owner.getId() : null;
+        if (ownerId == null) {
+            throw new CustomerNotFoundException("Device does not belong to this customer");
+        }
+        if (!ownerId.equals(customerId)) {
+            throw new CustomerNotFoundException("Device does not belong to this customer");
+        }
+        device.setStatus(newStatus);
+        deviceRepository.save(Objects.requireNonNull(device));
+        return toSummary(device);
+    }
+
+    private DeviceSummaryDTO toSummary(Device device) {
+        return new DeviceSummaryDTO(
+                device.getId(),
+                device.getName(),
+                device.getFingerprint(),
+                device.getDeviceId(),
+                device.getStatus(),
+                device.getOsName(),
+                device.getOsVersion(),
+                device.getAppVersion(),
+                device.getLastIp(),
+                device.getLastSeenAt(),
+                device.getCreatedAt()
+        );
     }
 }
