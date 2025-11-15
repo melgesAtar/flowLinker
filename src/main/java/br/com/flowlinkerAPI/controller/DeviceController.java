@@ -10,6 +10,7 @@ import br.com.flowlinkerAPI.repository.DeviceRepository;
 import br.com.flowlinkerAPI.repository.AppReleaseRepository;
 import br.com.flowlinkerAPI.repository.CustomerRepository;
 import br.com.flowlinkerAPI.service.DevicePolicyService;
+import br.com.flowlinkerAPI.exceptions.LimitDevicesException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -141,6 +142,20 @@ public class DeviceController {
         if (body != null && body.status != null) {
             try {
                 DeviceStatus s = DeviceStatus.valueOf(body.status.toUpperCase());
+                // Bloqueia reativação caso o limite de devices ativos já tenha sido atingido
+                if (s == DeviceStatus.ACTIVE && device.getStatus() != DeviceStatus.ACTIVE) {
+                    if (device.getCustomer() != null) {
+                        Long customerId = device.getCustomer().getId();
+                        if (customerId == null) {
+                            throw new IllegalArgumentException("Customer id is required");
+                        }
+                        int active = deviceRepository.countByCustomerIdAndStatus(customerId, DeviceStatus.ACTIVE);
+                        int max = devicePolicyService.getAllowedDevices(customerId, device.getCustomer().getOfferType());
+                        if (active >= max) {
+                            throw new LimitDevicesException("Sem máquinas disponíveis. Revogue o acesso de uma máquina no painel administrativo para liberar uma vaga.");
+                        }
+                    }
+                }
                 device.setStatus(s);
             } catch (IllegalArgumentException ignored) { /* ignora status inválido */ }
         }
