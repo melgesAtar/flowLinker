@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/metrics")
-@Tag(name = "API de Eventos", description = "Proxy dos endpoints do serviço externo de métricas")
+@Tag(name = "Metrics", description = "Proxy dos endpoints do serviço externo de métricas/eventos")
 public class MetricsProxyController {
 
     private final MetricsProxyService service;
@@ -124,6 +124,18 @@ public class MetricsProxyController {
     public ResponseEntity<Object> campaignsCount(@AuthenticationPrincipal CurrentUser user,
                                                  @Parameter(description = "Janela em horas") @RequestParam(defaultValue = "24") Integer hours) {
         return ResponseEntity.ok(service.getCampaignsCount(user.customerId(), hours));
+    }
+
+    @Operation(summary = "Último dispositivo que usou a conta", description = "Proxy para /accounts/last-device na API de eventos.")
+    @GetMapping("/accounts/last-device")
+    public ResponseEntity<Object> lastDeviceForAccount(
+            @AuthenticationPrincipal CurrentUser user,
+            @Parameter(description = "ID do cliente (se não informado, usa o customerId do token)") @RequestParam(required = false) Long customerId,
+            @Parameter(description = "E-mail da conta de rede social") @RequestParam String account,
+            @Parameter(description = "Timezone (ex: America/Sao_Paulo)") @RequestParam(required = false) String tz
+    ) {
+        Long cid = (customerId != null) ? customerId : user.customerId();
+        return ResponseEntity.ok(service.getLastDeviceForAccount(cid, account, tz));
     }
 }
 
