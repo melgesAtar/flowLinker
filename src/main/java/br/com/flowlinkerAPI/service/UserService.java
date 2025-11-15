@@ -70,6 +70,7 @@ public class UserService {
             String randomPassword = generateRandomPassword(12);
             String hashedPassword = passwordEncoder.encode(randomPassword);
             newUser.setPassword(hashedPassword);
+            newUser.setRole(User.Role.USER);
             return userRepository.save(newUser);
         });
     }
@@ -83,6 +84,7 @@ public class UserService {
                 String randomPassword = generateRandomPassword(12);
                 String hashedPassword = passwordEncoder.encode(randomPassword);
                 newUser.setPassword(hashedPassword);
+                newUser.setRole(User.Role.USER);
                 User saved = userRepository.save(newUser);
                 return new CreatedUserResultDTO(saved, true, randomPassword);
             });
@@ -113,12 +115,18 @@ public class UserService {
         if (!passwordEncoder.matches(password, user.getPassword())) {
             throw new BadCredentialsException("Invalid Credentials");
         }
-        logger.info("Login bem-sucedido username={} type={} customerId={}", username, type, (user.getCustomer() != null ? String.valueOf(user.getCustomer().getId()) : null));
+        if (user.getRole() == null) {
+            user.setRole(User.Role.USER);
+            userRepository.save(user);
+        }
+        User.Role role = user.getRole();
+        logger.info("Login bem-sucedido username={} type={} role={} customerId={}", username, type, role, (user.getCustomer() != null ? String.valueOf(user.getCustomer().getId()) : null));
         
         long expirationMillis = "device".equals(type) ? 604800000L : 86400000L;     
         
         Map<String, Object> claims = new HashMap<>();
         claims.put("type", type);
+        claims.put("role", role.name());
         
         String redisKey;
         
@@ -285,6 +293,85 @@ public class UserService {
         String realIp = request.getHeader("X-Real-IP");
         if (realIp != null && !realIp.isEmpty()) return realIp.trim();
         return request.getRemoteAddr();
+    }
+
+    public void logout(HttpServletRequest request, HttpServletResponse response) {
+        try {
+            String token = null;
+            String header = request != null ? request.getHeader("Authorization") : null;
+            if (header != null && header.startsWith("Bearer ")) {
+                token = header.replace("Bearer ", "");
+            } else if (request != null && request.getCookies() != null) {
+                for (jakarta.servlet.http.Cookie c : request.getCookies()) {
+                    if ("jwtToken".equals(c.getName())) {
+                        token = c.getValue();
+                        break;
+                    }
+                }
+            }
+
+            if (token != null && !token.isEmpty()) {
+                SecretKey key = Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
+                var claims = Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
+
+                String subject = claims.getSubject();
+                Object typeObj = claims.get("type");
+                String type = typeObj != null ? String.valueOf(typeObj) : "web";
+
+                if ("device".equals(type)) {
+                    Object cid = claims.get("customerId");
+                    Object fp = claims.get("fingerprint");
+                    if (cid != null && fp != null) {
+                        String redisKey = "device:token:" + cid + ":" + fp;
+                        redisTemplate.delete(redisKey);
+                        logger.info("Logout device efetuado subject={} key={}", subject, redisKey);
+                    }
+                } else {
+                    String key1 = "web:token:" + subject;
+                    redisTemplate.delete(key1);
+                    String headerType = request != null ? request.getHeader("X-Auth-Type") : null;
+                    if (headerType != null && !headerType.isBlank() && !"web".equals(headerType)) {
+                        String key2 = headerType + ":token:" + subject;
+                        redisTemplate.delete(key2);
+                    }
+                    logger.info("Logout web efetuado subject={}", subject);
+                }
+            }
+        } catch (Exception e) {
+            logger.warn("Erro ao processar logout: {}", e.getMessage());
+        } finally {
+            try {
+                boolean isHttps = false;
+                boolean isCrossSite = false;
+                if (request != null) {
+                    String xfProto = request.getHeader("X-Forwarded-Proto");
+                    isHttps = (xfProto != null && xfProto.equalsIgnoreCase("https")) || request.isSecure();
+                    String origin = request.getHeader("Origin");
+                    if (origin != null && !origin.isBlank()) {
+                        java.net.URI o = java.net.URI.create(origin);
+                        String originHost = o.getHost();
+                        String serverName = request.getServerName();
+                        isCrossSite = originHost != null && serverName != null && !originHost.equalsIgnoreCase(serverName);
+                        if (!isHttps && "https".equalsIgnoreCase(o.getScheme())) {
+                            isHttps = true;
+                        }
+                    }
+                }
+                String sameSite = (isCrossSite || isHttps) ? "None" : "Lax";
+                boolean secure = (isCrossSite || isHttps);
+
+                ResponseCookie clear = ResponseCookie.from("jwtToken", "")
+                    .httpOnly(true)
+                    .secure(secure)
+                    .sameSite(sameSite)
+                    .path("/")
+                    .maxAge(0)
+                    .build();
+                if (response != null) {
+                    response.addHeader(HttpHeaders.SET_COOKIE, clear.toString());
+                }
+            } catch (Exception ignored) {}
+        }
     }
 
     

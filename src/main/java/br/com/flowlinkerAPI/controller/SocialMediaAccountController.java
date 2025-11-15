@@ -12,6 +12,9 @@ import br.com.flowlinkerAPI.dto.desktop.SocialMediaAccountStatusPatch;
 import br.com.flowlinkerAPI.dto.desktop.SocialMediaAccountCreateRequest;
 import org.springframework.http.HttpStatus;
 import br.com.flowlinkerAPI.dto.desktop.SocialMediaAccountUpdateRequest;
+import br.com.flowlinkerAPI.dto.desktop.SocialMediaAccountBasicResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 
 @RestController
 @RequestMapping("/social-media-accounts")
@@ -27,6 +30,22 @@ public class SocialMediaAccountController {
     public ResponseEntity<List<SocialMediaAccountResponse>> list(@RequestParam String platform,
                                                                  @AuthenticationPrincipal CurrentUser user) {
         return ResponseEntity.ok(service.listAccountsForPlatform(platform, user.customerId()));
+    }
+
+    // Novo endpoint: aceita nenhuma, uma ou várias plataformas (?platform=FACEBOOK&platform=INSTAGRAM)
+    // Se não vier plataforma, retorna todas as contas (exceto DELETED) do cliente.
+    @Operation(
+        summary = "Buscar contas por plataformas (opcional)",
+        description = "Retorna as contas de redes sociais do cliente autenticado. "
+                    + "Se nenhum parâmetro 'platform' for enviado, retorna todas as contas (exceto DELETED). "
+                    + "Aceita múltiplos 'platform' na query string, por exemplo: ?platform=FACEBOOK&platform=INSTAGRAM."
+    )
+    @GetMapping("/search")
+    public ResponseEntity<List<SocialMediaAccountResponse>> search(
+            @Parameter(description = "Lista de plataformas (FACEBOOK, INSTAGRAM, etc.). Se ausente, retorna todas as contas.")
+            @RequestParam(name = "platform", required = false) java.util.List<String> platforms,
+            @AuthenticationPrincipal CurrentUser user) {
+        return ResponseEntity.ok(service.listAccountsByPlatforms(platforms, user.customerId()));
     }
 
     @GetMapping("/by-status")
@@ -54,6 +73,11 @@ public class SocialMediaAccountController {
         }
         return ResponseEntity.ok(resp);
     }
+
+        @GetMapping("/mine")
+        public ResponseEntity<List<SocialMediaAccountBasicResponse>> listMine(@AuthenticationPrincipal CurrentUser user) {
+            return ResponseEntity.ok(service.listMineBasic(user.customerId()));
+        }
 
     @GetMapping("/{id}/cookies")
     public ResponseEntity<List<SocialCookieDTO>> getCookies(@PathVariable Long id,

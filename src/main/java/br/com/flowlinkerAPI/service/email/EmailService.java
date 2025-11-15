@@ -3,7 +3,6 @@ package br.com.flowlinkerAPI.service.email;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
-import java.nio.file.Files;
 import java.nio.charset.StandardCharsets;
 import java.io.IOException;
 import br.com.flowlinkerAPI.exceptions.WelcomeEmailNotSendException;
@@ -22,7 +21,7 @@ public class EmailService {
     }
 
     public void sendWelcomeEmail(String toEmail, String username, String password) throws WelcomeEmailNotSendException {
-    String html = loadTemplate("/static/welcome.html")
+    String html = loadTemplate("static/welcome.html")
         .replace("{{username}}", username)
         .replace("{{password}}", password);
 
@@ -43,11 +42,12 @@ public class EmailService {
 
     private String loadTemplate(String templatePath) {
         try {
-            var res = new ClassPathResource(templatePath);
-            byte[] bytes = Files.readAllBytes(res.getFile().toPath());
-            return new String(bytes, StandardCharsets.UTF_8);
+            var resource = new ClassPathResource(templatePath);
+            try (var in = resource.getInputStream()) {
+                return new String(in.readAllBytes(), StandardCharsets.UTF_8);
+            }
         } catch (IOException e) {
-            throw new RuntimeException("Error loading template: " + templatePath, e);
+            throw new WelcomeEmailNotSendException("Error loading template: " + templatePath);
         }
     }
     }

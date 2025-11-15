@@ -63,6 +63,12 @@ public class SubscriptionSyncService {
         sub.setCancelAtPeriodEnd(Boolean.TRUE.equals(stripeSub.getCancelAtPeriodEnd()));
         sub.setDefaultPaymentMethodId(stripeSub.getDefaultPaymentMethod());
         sub.setCurrency(stripeSub.getCurrency());
+        if (stripeSub.getTrialStart() != null) {
+            sub.setTrialStart(Instant.ofEpochSecond(stripeSub.getTrialStart()));
+        }
+        if (stripeSub.getTrialEnd() != null) {
+            sub.setTrialEnd(Instant.ofEpochSecond(stripeSub.getTrialEnd()));
+        }
         sub.setUpdatedAt(Instant.now());
         subscriptionRepository.save(sub);
 

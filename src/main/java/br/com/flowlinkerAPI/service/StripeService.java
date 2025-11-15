@@ -34,8 +34,6 @@ public class StripeService {
         Event event = null;
 
 
-
-
         try {
             event = Webhook.constructEvent(payload, sigHeader, endpointSecret);
         } catch (SignatureVerificationException e) {
@@ -45,8 +43,6 @@ public class StripeService {
             logger.warn("Payload inválido do Stripe: {}", e.getMessage());
             return ResponseEntity.status(400).build();
         }
-
-       
 
         rabbitTemplate.convertAndSend(RabbitMQConfig.EXCHANGE_NAME, "stripe.event." + event.getType(), payload);
         logger.info("Evento publicado na fila RabbitMQ: {}", event.getType());

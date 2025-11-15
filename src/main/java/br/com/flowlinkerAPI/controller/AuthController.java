@@ -89,4 +89,15 @@ public class AuthController {
         passwordResetService.resetPassword(body.getToken(), body.getNewPassword());
         return ResponseEntity.noContent().build();
     }
+
+    @Operation(
+        summary = "Logout",
+        description = "Invalida o token atual. Para web, também limpa o cookie httpOnly `jwtToken`. Requer envio do token por Authorization: Bearer ou cookie."
+    )
+    @ApiResponse(responseCode = "204", description = "Logout efetuado")
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(HttpServletRequest request, HttpServletResponse response) {
+        userService.logout(request, response);
+        return ResponseEntity.noContent().build();
+    }
 }
