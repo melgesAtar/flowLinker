@@ -156,6 +156,16 @@ public class MetricsProxyService {
         return getObjectFromEvents("/accounts/last-device", params);
     }
 
+    public Object getAccountSuspensionStatus(Long customerId, String account, String tz) {
+        Map<String, String> params = new java.util.HashMap<>();
+        params.put("customerId", String.valueOf(customerId));
+        params.put("account", account);
+        if (tz != null && !tz.isBlank()) {
+            params.put("tz", tz);
+        }
+        return getObjectFromEvents("/accounts/suspension-status", params);
+    }
+
     @NonNull
     private URI buildUri(String path, Map<String, String> params) {
         StringBuilder sb = new StringBuilder(baseUrl);

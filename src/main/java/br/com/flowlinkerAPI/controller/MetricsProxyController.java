@@ -137,6 +137,17 @@ public class MetricsProxyController {
         Long cid = (customerId != null) ? customerId : user.customerId();
         return ResponseEntity.ok(service.getLastDeviceForAccount(cid, account, tz));
     }
+
+    @Operation(summary = "Status de suspensão da conta", description = "Proxy para /accounts/suspension-status na API de eventos.")
+    @GetMapping("/accounts/suspension-status")
+    public ResponseEntity<Object> accountSuspensionStatus(
+            @AuthenticationPrincipal CurrentUser user,
+            @Parameter(description = "E-mail da conta de rede social") @RequestParam String account,
+            @Parameter(description = "Timezone (ex: America/Sao_Paulo)") @RequestParam(required = false) String tz
+    ) {
+        Long cid = user.customerId();
+        return ResponseEntity.ok(service.getAccountSuspensionStatus(cid, account, tz));
+    }
 }
 
 
